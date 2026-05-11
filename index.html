@@ -38,7 +38,7 @@ const { useState, useEffect, useCallback, useMemo } = React;
 
 // ══════════════════════════════════════════════
 // ★ ここだけ変える ★
-const ADMIN_PASSWORD = "admin2025";   // 管理者パスワード
+const ADMIN_PASSWORD = "rio100sn";   // 管理者パスワード
 const GOOGLE_API_KEY = "AIzaSyCWXdWrHMYAT5Lsm9W3A-aUJbIe1OaSkE4"; // Google API Key
 // ══════════════════════════════════════════════
 
@@ -99,7 +99,7 @@ function AdminLogin({ onLogin }) {
       <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"44px 36px",width:"100%",maxWidth:"360px",animation:shake?"shake 0.4s ease":"fadeUp 0.5s ease"}}>
         <div style={{textAlign:"center",marginBottom:"32px"}}>
           <div style={{fontSize:"36px",marginBottom:"10px"}}>⚙️</div>
-          <h1 style={{color:"#fff",fontSize:"18px",fontWeight:"300",letterSpacing:"0.15em"}}>ADMIN PANEL</h1>
+          <h1 style={{color:"#fff",fontSize:"18px",fontWeight:"300",letterSpacing:"0.15em"}}>Kaho's Photo</h1>
           <p style={{color:"rgba(255,255,255,0.3)",fontSize:"12px",marginTop:"6px"}}>管理者専用ページ</p>
         </div>
         <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="管理者パスワード"
@@ -159,7 +159,7 @@ function AdminPanel({ onLogout }) {
       {/* ヘッダー */}
       <header style={{background:"rgba(15,15,26,0.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"14px 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:"900px",margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <h1 style={{fontSize:"15px",fontWeight:"300",letterSpacing:"0.15em"}}>⚙️ ADMIN PANEL</h1>
+          <h1 style={{fontSize:"15px",fontWeight:"300",letterSpacing:"0.15em"}}>📷 Kaho's Photo</h1>
           <button className="btn" onClick={onLogout} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.4)",padding:"6px 14px",borderRadius:"20px",fontSize:"12px"}}>ログアウト</button>
         </div>
       </header>
