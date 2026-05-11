@@ -270,4 +270,408 @@ function AdminPanel({onLogout}) {
                                 <input type="date" value={editExpiry} onChange={e=>setEditExpiry(e.target.value)} style={{padding:"2px 8px",borderRadius:"6px",border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",outline:"none"}}/>
                                 <button className="btn" onClick={()=>updateExpiry(album.id)} style={{background:"#48c774",color:"#fff",padding:"3px 10px",borderRadius:"6px",fontSize:"11px",fontWeight:"600"}}>保存</button>
                                 <button className="btn" onClick={()=>setEditing(null)} style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"3px 8px",borderRadius:"6px",fontSize:"11px"}}>✕</button>
-            
+                              </span>
+                            ):(
+                              <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
+                                {fmtExpiry(album.expiry)}
+                                <button className="btn" onClick={()=>{setEditing(album.id);setEditExpiry(album.expiry);}} style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)",padding:"2px 8px",borderRadius:"6px",fontSize:"11px"}}>変更</button>
+                              </span>
+                            )}
+                          </span>
+                          {albumLogs.length>0&&<span style={{fontSize:"11px",color:"rgba(255,255,255,0.3)"}}>最終: {albumLogs[0].accessedAt} ({albumLogs[0].region})</span>}
+                          <span style={{fontSize:"11px",color:"rgba(255,255,255,0.2)",wordBreak:"break-all"}}>🔗 {albumUrl}</span>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
+                        <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{copied===album.id?"✓ コピー済":"🔗 URLコピー"}</button>
+                        <button className="btn" onClick={()=>window.open(`${location.origin}${location.pathname}?a=${album.id}`,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>👁 プレビュー</button>
+                        <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>🗑</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════
+// チャット
+// ════════════════════════════════════════════════
+function Chat({albumId, albumTitle}) {
+  const key = `pg_chat_${albumId}`;
+  const [messages, setMessages] = useState(()=>{ try{return JSON.parse(localStorage.getItem(key)||"[]")}catch{return [];} });
+  const [input, setInput] = useState("");
+  const [name, setName] = useState(()=>localStorage.getItem(`pg_chat_name_${albumId}`)||"");
+  const [nameSet, setNameSet] = useState(!!localStorage.getItem(`pg_chat_name_${albumId}`));
+  const bottomRef = useRef(null);
+
+  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+
+  const saveName = () => {
+    if(!name.trim()) return;
+    localStorage.setItem(`pg_chat_name_${albumId}`, name.trim());
+    setNameSet(true);
+  };
+
+  const sendMsg = () => {
+    if(!input.trim()) return;
+    const msg = { id:genId(), name, text:input.trim(), time:jstNow() };
+    const next = [...messages, msg];
+    setMessages(next);
+    localStorage.setItem(key, JSON.stringify(next));
+    setInput("");
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:"400px"}}>
+      {!nameSet ? (
+        <div style={{padding:"24px",display:"flex",flexDirection:"column",gap:"12px",alignItems:"center",justifyContent:"center",flex:1}}>
+          <p style={{color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>チャットに表示される名前を入力してください</p>
+          <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveName()} placeholder="例: 山田花子"
+            style={{width:"100%",maxWidth:"280px",padding:"10px 14px",borderRadius:"10px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"14px",outline:"none",boxSizing:"border-box"}}/>
+          <button className="btn" onClick={saveName} style={{padding:"10px 24px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>決定</button>
+        </div>
+      ) : (
+        <>
+          <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:"10px"}}>
+            {messages.length===0&&<div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"13px",padding:"40px 0"}}>メッセージはまだありません</div>}
+            {messages.map(msg=>(
+              <div key={msg.id} className="chat-msg" style={{display:"flex",flexDirection:"column",gap:"2px"}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
+                  <span style={{fontSize:"12px",fontWeight:"600",color:"#a5b4fc"}}>{msg.name}</span>
+                  <span style={{fontSize:"10px",color:"rgba(255,255,255,0.3)"}}>{msg.time}</span>
+                </div>
+                <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"0 12px 12px 12px",padding:"8px 12px",fontSize:"13px",color:"#fff",lineHeight:"1.5",wordBreak:"break-word",maxWidth:"85%"}}>
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef}/>
+          </div>
+          <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.08)",display:"flex",gap:"8px",alignItems:"center"}}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()} placeholder="メッセージを入力..."
+              style={{flex:1,padding:"10px 14px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none"}}/>
+            <button className="btn" onClick={sendMsg} style={{padding:"10px 16px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600",flexShrink:0}}>送信</button>
+          </div>
+          <div style={{padding:"6px 16px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:"10px",color:"rgba(255,255,255,0.2)"}}>名前: {name}</span>
+            <button className="btn" onClick={()=>{localStorage.removeItem(`pg_chat_name_${albumId}`);setNameSet(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.2)",fontSize:"10px",padding:0}}>名前を変更</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════
+// お客さんログイン
+// ════════════════════════════════════════════════
+function ClientLogin({album,onLogin}) {
+  const [pw,setPw]=useState(""); const [err,setErr]=useState(false); const [shake,setShake]=useState(false);
+  const submit=async()=>{
+    if(pw===album.password){
+      try{
+        const r=await fetch("https://ipapi.co/json/").catch(()=>null);
+        const d=r?await r.json().catch(()=>({})):{};
+        const region=d.city?`${d.country_name} / ${d.city}`:"不明";
+        await gasPost({action:"addLog",log:{albumId:album.id,albumTitle:album.title,accessedAt:jstNow(),region}});
+      }catch(e){}
+      onLogin(); return;
+    }
+    setErr(true); setShake(true); setTimeout(()=>setShake(false),500);
+  };
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#1a1a2e,#16213e,#0f3460)",padding:"20px"}}>
+      <div style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"24px",padding:"48px 36px",width:"100%",maxWidth:"380px",animation:shake?"shake 0.4s ease":"fadeUp 0.5s ease"}}>
+        <div style={{textAlign:"center",marginBottom:"36px"}}>
+          <div style={{fontSize:"44px",marginBottom:"12px"}}>📷</div>
+          <h1 style={{color:"#fff",fontSize:"20px",fontWeight:"300",letterSpacing:"0.2em",margin:0}}>PHOTO GALLERY</h1>
+          <p style={{color:"rgba(255,255,255,0.35)",fontSize:"13px",marginTop:"8px"}}>{album.clientName||album.title} 専用ギャラリー</p>
+        </div>
+        <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="パスワードを入力"
+          style={{width:"100%",padding:"14px 16px",borderRadius:"12px",border:`1.5px solid ${err?"#ff6b6b":"rgba(255,255,255,0.15)"}`,background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"16px",outline:"none",letterSpacing:"0.08em",boxSizing:"border-box"}}/>
+        {err&&<p style={{color:"#ff6b6b",fontSize:"12px",marginTop:"8px",textAlign:"center"}}>パスワードが違います</p>}
+        <button className="btn" onClick={submit} style={{width:"100%",marginTop:"16px",padding:"14px",borderRadius:"12px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"15px",fontWeight:"600"}}>ギャラリーを見る</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════
+// ギャラリー
+// ════════════════════════════════════════════════
+function Gallery({album}) {
+  const {marks,toggleMark,hasMark,hasAnyMark,countMark}=useMarks(album.id);
+  const [photos,setPhotos]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(null);
+  const [selectedIdx,setSelectedIdx]=useState(null);
+  const [filterMark,setFilterMark]=useState(""); // ""=全部, "heart"/"star"/"crown"
+  const [thumbSize,setThumbSize]=useState(200);
+  const [sortKey,setSortKey]=useState("takenAt"); const [sortDir,setSortDir]=useState("desc");
+  const [showHelp,setShowHelp]=useState(false); const [showChat,setShowChat]=useState(false);
+  const [checked,setChecked]=useState(new Set()); const [selectMode,setSelectMode]=useState(false);
+  const [filterDate,setFilterDate]=useState("");
+  const touchStartX=useRef(null);
+
+  useEffect(()=>{ fetchDrivePhotos(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
+
+  const toggleCheck=(id)=>setChecked(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);return next;});
+  const clearSelect=()=>{setChecked(new Set());setSelectMode(false);};
+  const availableDates=useMemo(()=>{const d=new Set(photos.map(p=>fmtDate(p.takenAt)));return[...d].sort().reverse();},[photos]);
+
+  const displayPhotos=useMemo(()=>[...photos]
+    .filter(p=>!filterMark||hasMark(p.id,filterMark))
+    .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
+    .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
+  ,[photos,filterMark,filterDate,sortKey,sortDir,marks]);
+
+  const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
+  const downloadSelected=()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');[...checked].forEach((id,i)=>setTimeout(()=>{const photo=displayPhotos.find(p=>p.id===id);const a=document.createElement("a");a.href=driveDownload(id);a.download=ds+'_'+(photo?.filename||id+'.jpg');a.target="_blank";a.click();},i*600));};
+
+  const selected=selectedIdx!==null?displayPhotos[selectedIdx]:null;
+  const goPrev=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i>0?i-1:displayPhotos.length-1);},[displayPhotos.length]);
+  const goNext=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i<displayPhotos.length-1?i+1:0);},[displayPhotos.length]);
+
+  useEffect(()=>{
+    if(selectedIdx===null)return;
+    const fn=(e)=>{if(e.key==="ArrowLeft")goPrev();else if(e.key==="ArrowRight")goNext();else if(e.key==="Escape")setSelectedIdx(null);};
+    window.addEventListener("keydown",fn); return()=>window.removeEventListener("keydown",fn);
+  },[selectedIdx,goPrev,goNext]);
+
+  const onTouchStart=(e)=>{touchStartX.current=e.touches[0].clientX;};
+  const onTouchEnd=(e)=>{if(touchStartX.current===null)return;const diff=touchStartX.current-e.changedTouches[0].clientX;if(Math.abs(diff)>50){diff>0?goNext():goPrev();}touchStartX.current=null;};
+
+  const expired=isExpired(album.expiry); const left=daysLeft(album.expiry);
+  const hasLine=!!album.lineUrl;
+
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e,#16213e)",color:"#fff",paddingBottom:"80px"}}>
+      {expired&&<div style={{background:"rgba(255,100,100,0.15)",borderBottom:"1px solid rgba(255,100,100,0.3)",padding:"10px 16px",textAlign:"center",fontSize:"13px",color:"#ff6b6b"}}>🔒 このギャラリーは公開終了しました</div>}
+
+      <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(15,15,26,0.88)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"12px 16px"}}>
+        <div style={{maxWidth:"1400px",margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px"}}>
+            <div>
+              <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.2em"}}>📷 {album.title}</h1>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginTop:"4px"}}>
+                <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>
+                  {expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}
+                </span>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:"6px",flexShrink:0}}>
+              {/* LINE or チャットボタン */}
+              {hasLine?(
+                <button className="btn" onClick={()=>window.open(album.lineUrl,"_blank")} style={{background:"#06c755",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600"}}>💬 LINE</button>
+              ):(
+                <button className="btn" onClick={()=>setShowChat(v=>!v)} style={{background:showChat?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>💬 チャット</button>
+              )}
+              <button className="btn" onClick={()=>setShowHelp(true)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>❓</button>
+            </div>
+          </div>
+
+          <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
+            {/* マークフィルター */}
+            {MARKS.map(m=>(
+              <button key={m.key} className="btn" onClick={()=>setFilterMark(f=>f===m.key?"":m.key)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterMark===m.key?m.color:"rgba(255,255,255,0.08)",color:"#fff"}}>
+                {m.emoji} {filterMark===m.key?`(${countMark(m.key)})`:""}
+              </button>
+            ))}
+            <button className="btn" onClick={()=>{setSelectMode(v=>!v);if(selectMode)clearSelect();}} style={{padding:"6px 14px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:selectMode?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:selectMode?"#fff":"rgba(255,255,255,0.6)"}}>
+              ☑️ {selectMode?"選択中":"複数選択"}
+            </button>
+            {selectMode&&<>
+              <button className="btn" onClick={selectAll} style={{padding:"6px 12px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"#fff",fontSize:"12px"}}>全選択</button>
+              {checked.size>0&&<button className="btn" onClick={downloadSelected} style={{padding:"6px 14px",borderRadius:"20px",border:"none",background:"#48c774",color:"#fff",fontSize:"12px",fontWeight:"600"}}>💾 {checked.size}枚保存</button>}
+              <button className="btn" onClick={clearSelect} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>
+            </>}
+            <select value={filterDate} onChange={e=>setFilterDate(e.target.value)} style={{background:filterDate?"rgba(102,126,234,0.3)":"rgba(255,255,255,0.08)",border:`1px solid ${filterDate?"rgba(102,126,234,0.6)":"rgba(255,255,255,0.12)"}`,color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
+              <option value="">📅 全日程</option>
+              {availableDates.map(d=><option key={d} value={d}>{d}</option>)}
+            </select>
+            {filterDate&&<button className="btn" onClick={()=>setFilterDate("")} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>}
+            <select value={sortKey} onChange={e=>setSortKey(e.target.value)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
+              <option value="takenAt">撮影日</option><option value="filename">ファイル名</option>
+            </select>
+            <button className="btn" onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>
+              {sortDir==="asc"?"↑ 古い順":"↓ 新しい順"}
+            </button>
+            <span style={{fontSize:"11px",color:"rgba(255,255,255,0.35)",marginLeft:"auto"}}>{displayPhotos.length}枚</span>
+          </div>
+        </div>
+      </header>
+
+      {/* チャットパネル */}
+      {!hasLine&&showChat&&(
+        <div style={{maxWidth:"1400px",margin:"0 auto",padding:"12px 12px 0"}}>
+          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",overflow:"hidden",maxHeight:"400px",display:"flex",flexDirection:"column"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:"13px",fontWeight:"600"}}>💬 チャット</span>
+              <button className="btn" onClick={()=>setShowChat(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"24px",height:"24px",fontSize:"14px",display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>
+            </div>
+            <Chat albumId={album.id} albumTitle={album.title}/>
+          </div>
+        </div>
+      )}
+
+      <main style={{maxWidth:"1400px",margin:"0 auto",padding:"20px 12px"}}>
+        {loading?(<div style={{textAlign:"center",padding:"80px 0"}}><Spinner/><p style={{color:"rgba(255,255,255,0.4)",fontSize:"14px",marginTop:"16px"}}>読み込み中...</p></div>)
+        :error?(<div style={{textAlign:"center",padding:"80px 20px"}}><p style={{color:"#ff6b6b",fontSize:"14px",marginBottom:"8px"}}>⚠️ 読み込みエラー</p><p style={{color:"rgba(255,255,255,0.4)",fontSize:"12px"}}>{error}</p></div>)
+        :displayPhotos.length===0?(<div style={{textAlign:"center",padding:"80px 0",color:"rgba(255,255,255,0.3)",fontSize:"15px"}}>{filterMark?"マークした写真はありません":filterDate?"📅 この日の写真はありません":"📂 フォルダに写真がありません"}</div>)
+        :(
+          <div style={{display:"grid",gridTemplateColumns:`repeat(auto-fill,minmax(${thumbSize}px,1fr))`,gap:"10px"}}>
+            {displayPhotos.map((photo,idx)=>{
+              const isChecked=checked.has(photo.id);
+              const photoMarks=marks[photo.id]||{};
+              const activeMarks=MARKS.filter(m=>photoMarks[m.key]);
+              return (
+                <div key={photo.id} className="tc" onClick={()=>selectMode?toggleCheck(photo.id):setSelectedIdx(idx)}
+                  style={{position:"relative",borderRadius:"10px",overflow:"hidden",background:"#1a1a2e",aspectRatio:"4/3",boxShadow:isChecked?"0 0 0 3px #667eea":"0 4px 16px rgba(0,0,0,0.3)",transition:"box-shadow 0.15s"}}>
+                  <img src={driveThumb(photo.id)} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"20px 8px 6px",fontSize:"10px",color:"rgba(255,255,255,0.8)"}}>{fmtDate(photo.takenAt)}</div>
+
+                  {/* 付いてるマークを表示 */}
+                  {activeMarks.length>0&&(
+                    <div style={{position:"absolute",top:"7px",left:"7px",display:"flex",gap:"2px"}}>
+                      {activeMarks.map(m=><span key={m.key} style={{fontSize:"14px",filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.8))"}}>{m.emoji}</span>)}
+                    </div>
+                  )}
+
+                  {/* マークボタン群 */}
+                  {!selectMode&&(
+                    <div className={`mark-btn${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
+                      {MARKS.map(m=>(
+                        <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
+                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:"28px",height:"28px",fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",transition:"background 0.15s"}}>
+                          {m.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectMode&&<div style={{position:"absolute",top:"7px",right:"7px",width:"28px",height:"28px",borderRadius:"50%",border:`2px solid ${isChecked?"#667eea":"rgba(255,255,255,0.6)"}`,background:isChecked?"#667eea":"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{isChecked&&<CheckIcon/>}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:"rgba(10,10,20,0.94)",backdropFilter:"blur(16px)",borderTop:"1px solid rgba(255,255,255,0.08)",padding:"10px 20px",paddingBottom:"calc(10px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
+        <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",whiteSpace:"nowrap"}}>🖼 サイズ</span>
+        <input type="range" min="120" max="360" value={thumbSize} onChange={e=>setThumbSize(Number(e.target.value))} style={{width:"140px"}}/>
+        <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",width:"32px"}}>{thumbSize}</span>
+      </div>
+
+      {/* 拡大モーダル */}
+      {selected&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px"}}
+          onClick={()=>setSelectedIdx(null)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+          <button className="btn" onClick={goPrev} style={{position:"fixed",left:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>‹</button>
+          <button className="btn" onClick={goNext} style={{position:"fixed",right:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>›</button>
+          <div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"min(85vw,700px)",width:"100%"}}>
+            <img src={driveView(selected.id)} alt="" style={{width:"100%",maxHeight:"58vh",objectFit:"contain",borderRadius:"10px",display:"block"}}/>
+            <div style={{position:"absolute",bottom:"10px",left:"10px",background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:"11px",padding:"4px 10px",borderRadius:"20px",backdropFilter:"blur(4px)"}}>
+              📅 {fmt(selected.takenAt)} ({selectedIdx+1}/{displayPhotos.length})
+            </div>
+            {/* マークボタン（拡大時） */}
+            <div style={{position:"absolute",top:"10px",right:"10px",display:"flex",gap:"4px"}}>
+              {MARKS.map(m=>(
+                <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(selected.id,m.key);}}
+                  style={{background:hasMark(selected.id,m.key)?m.color:"rgba(0,0,0,0.6)",border:"none",borderRadius:"50%",width:"36px",height:"36px",fontSize:"16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+                  {m.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div onClick={e=>e.stopPropagation()} style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"14px",justifyContent:"center"}}>
+            {[
+              {label:"💾 元画像サイズで保存",fn:()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');const a=document.createElement('a');a.href=driveDownload(selected.id);a.download=ds+'_'+(selected.filename||selected.id+'.jpg');a.target='_blank';a.click();},bg:"#667eea"},
+              {label:"📲 LINEで共有",fn:()=>window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#06c755"},
+              ...(hasLine?[{label:"💬 LINEで相談",fn:()=>window.open(album.lineUrl,"_blank"),bg:"#00b900"}]:[]),
+              {label:"✉️ メールで共有",fn:()=>window.open(`mailto:?subject=写真をお届けします&body=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#f7a928"},
+            ].map(({label,fn,bg})=>(
+              <button key={label} className="btn" onClick={fn} style={{padding:"9px 14px",borderRadius:"30px",border:"none",background:bg,color:"#fff",fontSize:"12px",fontWeight:"600"}}>{label}</button>
+            ))}
+          </div>
+          <button className="btn" onClick={()=>setSelectedIdx(null)} style={{marginTop:"12px",background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"rgba(255,255,255,0.5)",padding:"7px 24px",borderRadius:"20px",fontSize:"13px"}}>閉じる</button>
+        </div>
+      )}
+
+      {showHelp&&(
+        <div onClick={()=>setShowHelp(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"440px",width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px"}}>
+              <h2 style={{color:"#fff",margin:0,fontSize:"17px"}}>📖 使い方ガイド</h2>
+              <button className="btn" onClick={()=>setShowHelp(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"32px",height:"32px",fontSize:"18px"}}>&times;</button>
+            </div>
+            {[
+              ["❤️⭐👑","マーク機能","写真右上の3つのボタンでマーク。上部のボタンで絞り込めます。3つ同時につけることも可能！"],
+              ["◀▶","写真のナビ","拡大表示中に左右矢印で前後へ。スマホはスワイプでもOK！"],
+              ["📅","日付フィルター","「📅 全日程」で日付を選ぶとその日だけ表示。"],
+              ["💬","チャット / LINE","カメラマンへの連絡はチャットまたはLINEボタンから。"],
+              ["☑️","複数選択保存","「複数選択」→チェック→「全選択」も可。まとめて保存。"],
+              ["💾","保存","拡大表示中に「元画像サイズで保存」で保存できます。"],
+              ["🖼","サイズ調整","画面下のスライダーでサムネイルの大きさを変更。"],
+              ["📱","ホーム追加","iPhone: Safariで開いて共有→「ホーム画面に追加」\nAndroid: Chromeでメニュー→「ホーム画面に追加」"],
+            ].map(([icon,title,desc])=>(
+              <div key={title} style={{display:"flex",gap:"14px",marginBottom:"16px",padding:"14px",background:"rgba(255,255,255,0.04)",borderRadius:"12px"}}>
+                <span style={{fontSize:"20px",flexShrink:0}}>{icon}</span>
+                <div><div style={{color:"#fff",fontWeight:"600",fontSize:"13px",marginBottom:"4px"}}>{title}</div><div style={{color:"rgba(255,255,255,0.5)",fontSize:"12px",lineHeight:"1.6",whiteSpace:"pre-line"}}>{desc}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════
+// ルーター
+// ════════════════════════════════════════════════
+function App() {
+  const params=new URLSearchParams(location.search);
+  const albumId=params.get("a"); const isAdmin=params.get("admin")==="1";
+  const [adminLoggedIn,setAdminLoggedIn]=useState(()=>sessionStorage.getItem("pg_admin")==="1");
+  const [clientAuth,setClientAuth]=useState(()=>sessionStorage.getItem(`pg_client_${albumId}`)==="1");
+  const [album,setAlbum]=useState(null); const [albumLoading,setAlbumLoading]=useState(!!albumId); const [albumNotFound,setAlbumNotFound]=useState(false);
+
+  useEffect(()=>{
+    if(!albumId)return;
+    gasGet("getAlbums").then(data=>{
+      const found=(Array.isArray(data)?data:[]).find(a=>a.id===albumId);
+      if(found)setAlbum(found);else setAlbumNotFound(true);
+    }).catch(()=>setAlbumNotFound(true)).finally(()=>setAlbumLoading(false));
+  },[albumId]);
+
+  if(isAdmin){
+    if(!adminLoggedIn)return<AdminLogin onLogin={()=>{sessionStorage.setItem("pg_admin","1");setAdminLoggedIn(true);}}/>;
+    return<AdminPanel onLogout={()=>{sessionStorage.removeItem("pg_admin");setAdminLoggedIn(false);}}/>;
+  }
+  if(albumId){
+    if(albumLoading)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0f0f1a"}}><Spinner/></div>;
+    if(albumNotFound||!album)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0f0f1a",color:"#fff",flexDirection:"column",gap:"12px"}}><div style={{fontSize:"48px"}}>🔍</div><p style={{color:"rgba(255,255,255,0.5)"}}>アルバムが見つかりません</p></div>;
+    if(!clientAuth)return<ClientLogin album={album} onLogin={()=>{sessionStorage.setItem(`pg_client_${albumId}`,"1");setClientAuth(true);}}/>;
+    return<Gallery album={album}/>;
+  }
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0f0f1a,#1a1a2e)",color:"#fff",flexDirection:"column",gap:"16px",padding:"20px",textAlign:"center"}}>
+      <div style={{fontSize:"56px"}}>📷</div>
+      <h1 style={{fontSize:"22px",fontWeight:"300",letterSpacing:"0.2em"}}>Kaho's Photo</h1>
+      <p style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>お客さまから届いたURLでアクセスしてください</p>
+      <a href="?admin=1" style={{marginTop:"24px",color:"rgba(255,255,255,0.2)",fontSize:"11px",textDecoration:"none"}}>管理者の方はこちら</a>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<script>
+  if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
+</script>
+</body>
+</html>
