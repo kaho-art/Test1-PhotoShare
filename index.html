@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Gallery" />
-  <title>Photo Gallery</title>
+  <title>Kaho's Photo</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -37,28 +37,44 @@
 const { useState, useEffect, useCallback, useMemo } = React;
 
 // ══════════════════════════════════════════════
-// ★ ここだけ変える ★
-const ADMIN_PASSWORD = "rio100sn";   // 管理者パスワード
-const GOOGLE_API_KEY = "AIzaSyCWXdWrHMYAT5Lsm9W3A-aUJbIe1OaSkE4"; // Google API Key
+// ★ 設定 ★
+const ADMIN_PASSWORD = "rio100sn";
+const GOOGLE_API_KEY = "AIzaSyCWXdWrHMYAT5Lsm9W3A-aUJbIe1OaSkE4";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbztpU_bNc09NP7poBUAQfcljjdjUjxoMWfRwtEnriXJxYDpAm1uI_lcR20vAWL98GvQ/exec";
 // ══════════════════════════════════════════════
 
-const STORAGE_KEY = "pg_albums_v1";
+// ── スプレッドシートAPI ───────────────────────
+const gasGet = async (action) => {
+  const res = await fetch(`${GAS_URL}?action=${action}`);
+  return res.json();
+};
+const gasPost = async (data) => {
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
 
 // ── ユーティリティ ────────────────────────────
 const genId = () => Math.random().toString(36).slice(2, 10);
-const fmt = (iso) => { if(!iso) return "—"; const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`; };
+const fmt = (iso) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+};
 const fmtDate = (iso) => iso ? fmt(iso).slice(0,10) : "—";
-const fmtExpiry = (dateStr) => { if(!dateStr) return "—"; const d=new Date(dateStr); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`; };
+const fmtExpiry = (dateStr) => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+};
 const daysLeft = (dateStr) => Math.ceil((new Date(dateStr) - Date.now()) / 86400000);
 const isExpired = (dateStr) => daysLeft(dateStr) <= 0;
 const extractFolderId = (url) => { const m = url.match(/folders\/([a-zA-Z0-9_-]+)/); return m ? m[1] : url.trim(); };
 const driveThumb = (id) => `https://lh3.googleusercontent.com/d/${id}=w400`;
 const driveView  = (id) => `https://lh3.googleusercontent.com/d/${id}=w1920`;
 const driveDownload = (id) => `https://drive.google.com/uc?export=download&id=${id}`;
-
-// ── アルバムデータ管理 ────────────────────────
-const loadAlbums = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; } };
-const saveAlbums = (albums) => localStorage.setItem(STORAGE_KEY, JSON.stringify(albums));
 
 // ── Google Drive 写真取得 ──────────────────────
 async function fetchDrivePhotos(folderId) {
@@ -87,6 +103,9 @@ const CheckIcon = () => (
     <polyline points="20 6 9 17 4 12"/>
   </svg>
 );
+const Spinner = () => (
+  <div style={{width:"36px",height:"36px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>
+);
 
 // ════════════════════════════════════════════════
 // 管理者ログイン
@@ -98,8 +117,8 @@ function AdminLogin({ onLogin }) {
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0f0f1a,#1a1a2e)",padding:"20px"}}>
       <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"44px 36px",width:"100%",maxWidth:"360px",animation:shake?"shake 0.4s ease":"fadeUp 0.5s ease"}}>
         <div style={{textAlign:"center",marginBottom:"32px"}}>
-          <div style={{fontSize:"36px",marginBottom:"10px"}}>⚙️</div>
-          <h1 style={{color:"#fff",fontSize:"18px",fontWeight:"300",letterSpacing:"0.15em"}}>Kaho's Photo</h1>
+          <div style={{fontSize:"36px",marginBottom:"10px"}}>📷</div>
+          <h1 style={{color:"#fff",fontSize:"20px",fontWeight:"300",letterSpacing:"0.15em"}}>Kaho's Photo</h1>
           <p style={{color:"rgba(255,255,255,0.3)",fontSize:"12px",marginTop:"6px"}}>管理者専用ページ</p>
         </div>
         <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="管理者パスワード"
@@ -112,75 +131,119 @@ function AdminLogin({ onLogin }) {
 }
 
 // ════════════════════════════════════════════════
-// 管理者画面
+// 管理者パネル
 // ════════════════════════════════════════════════
 function AdminPanel({ onLogout }) {
-  const [albums, setAlbums] = useState(loadAlbums);
-  const [tab, setTab] = useState("active"); // active / expired / new
-  const [form, setForm] = useState({ title:"", folderUrl:"", password:"", expiry:"", clientName:"" });
-  const [editing, setEditing] = useState(null); // 編集中のアルバムID
+  const [albums,  setAlbums]  = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [tab,     setTab]     = useState("active");
+  const [form,    setForm]    = useState({ title:"", folderUrl:"", password:"", expiry:"", clientName:"" });
+  const [editing, setEditing] = useState(null);
   const [editExpiry, setEditExpiry] = useState("");
-  const [copied, setCopied] = useState(null);
+  const [copied,  setCopied]  = useState(null);
+  const [msg,     setMsg]     = useState("");
 
-  const update = (albums) => { setAlbums(albums); saveAlbums(albums); };
+  const showMsg = (text) => { setMsg(text); setTimeout(()=>setMsg(""), 2500); };
 
-  const createAlbum = () => {
-    if (!form.title || !form.folderUrl || !form.password || !form.expiry) { alert("全項目を入力してください"); return; }
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await gasGet("getAlbums");
+      setAlbums(Array.isArray(data) ? data : []);
+    } catch(e) { showMsg("読み込みエラー: " + e.message); }
+    setLoading(false);
+  };
+
+  useEffect(()=>{ loadData(); },[]);
+
+  const createAlbum = async () => {
+    if (!form.title || !form.folderUrl || !form.password || !form.expiry) { showMsg("⚠️ 全項目を入力してください"); return; }
     const folderId = extractFolderId(form.folderUrl);
-    if (!folderId) { alert("GoogleドライブのフォルダURLが正しくありません"); return; }
-    const id = genId();
-    const newAlbum = { id, title: form.title, folderId, password: form.password, expiry: form.expiry, clientName: form.clientName, createdAt: new Date().toISOString() };
-    update([...albums, newAlbum]);
-    setForm({ title:"", folderUrl:"", password:"", expiry:"", clientName:"" });
-    setTab("active");
+    if (!folderId) { showMsg("⚠️ フォルダURLが正しくありません"); return; }
+    setSaving(true);
+    const album = { id: genId(), title: form.title, clientName: form.clientName, folderId, password: form.password, expiry: form.expiry, createdAt: new Date().toISOString() };
+    try {
+      await gasPost({ action: "saveAlbum", album });
+      setAlbums(prev => [...prev, album]);
+      setForm({ title:"", folderUrl:"", password:"", expiry:"", clientName:"" });
+      setTab("active");
+      showMsg("✅ アルバムを作成しました！");
+    } catch(e) { showMsg("エラー: " + e.message); }
+    setSaving(false);
   };
 
-  const updateExpiry = (id) => {
-    update(albums.map(a => a.id===id ? {...a, expiry: editExpiry} : a));
-    setEditing(null);
+  const updateExpiry = async (id) => {
+    try {
+      await gasPost({ action: "updateExpiry", id, expiry: editExpiry });
+      setAlbums(prev => prev.map(a => a.id===id ? {...a, expiry: editExpiry} : a));
+      setEditing(null);
+      showMsg("✅ 期限を更新しました");
+    } catch(e) { showMsg("エラー: " + e.message); }
   };
 
-  const deleteAlbum = (id) => { if(confirm("このアルバムを削除しますか？")) update(albums.filter(a=>a.id!==id)); };
+  const deleteAlbum = async (id) => {
+    if (!confirm("このアルバムを削除しますか？")) return;
+    try {
+      await gasPost({ action: "deleteAlbum", id });
+      setAlbums(prev => prev.filter(a => a.id!==id));
+      showMsg("🗑 削除しました");
+    } catch(e) { showMsg("エラー: " + e.message); }
+  };
 
   const copyUrl = (id) => {
     const url = `${location.origin}${location.pathname}?a=${id}`;
-    navigator.clipboard.writeText(url).then(()=>{ setCopied(id); setTimeout(()=>setCopied(null),2000); });
+    navigator.clipboard.writeText(url).then(()=>{ setCopied(id); setTimeout(()=>setCopied(null), 2000); });
   };
 
   const activeAlbums  = albums.filter(a => !isExpired(a.expiry));
   const expiredAlbums = albums.filter(a =>  isExpired(a.expiry));
-  const display = tab==="active" ? activeAlbums : tab==="expired" ? expiredAlbums : [];
+  const display = tab==="active" ? activeAlbums : expiredAlbums;
 
   const inputStyle = { width:"100%", padding:"10px 12px", borderRadius:"8px", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(255,255,255,0.06)", color:"#fff", fontSize:"13px", outline:"none", boxSizing:"border-box" };
   const labelStyle = { color:"rgba(255,255,255,0.5)", fontSize:"11px", marginBottom:"4px", display:"block" };
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e)",color:"#fff",paddingBottom:"60px"}}>
+      {/* トースト */}
+      {msg && (
+        <div style={{position:"fixed",top:"16px",left:"50%",transform:"translateX(-50%)",background:"rgba(30,30,50,0.95)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",padding:"10px 20px",borderRadius:"20px",fontSize:"13px",zIndex:9999,whiteSpace:"nowrap",boxShadow:"0 8px 32px rgba(0,0,0,0.4)"}}>
+          {msg}
+        </div>
+      )}
+
       {/* ヘッダー */}
       <header style={{background:"rgba(15,15,26,0.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"14px 20px",position:"sticky",top:0,zIndex:100}}>
         <div style={{maxWidth:"900px",margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <h1 style={{fontSize:"15px",fontWeight:"300",letterSpacing:"0.15em"}}>📷 Kaho's Photo</h1>
-          <button className="btn" onClick={onLogout} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.4)",padding:"6px 14px",borderRadius:"20px",fontSize:"12px"}}>ログアウト</button>
+          <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.15em"}}>📷 Kaho's Photo</h1>
+          <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+            <button className="btn" onClick={loadData} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.6)",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>🔄 更新</button>
+            <button className="btn" onClick={onLogout} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.4)",padding:"6px 14px",borderRadius:"20px",fontSize:"12px"}}>ログアウト</button>
+          </div>
         </div>
       </header>
 
       <div style={{maxWidth:"900px",margin:"0 auto",padding:"24px 16px"}}>
         {/* タブ */}
         <div style={{display:"flex",gap:"8px",marginBottom:"24px",flexWrap:"wrap"}}>
-          {[["active",`🟢 公開中 (${activeAlbums.length})`],["expired",`🔒 公開終了 (${expiredAlbums.length})`],["new","➕ 新規作成"]].map(([key,label])=>(
+          {[
+            ["active",  `🟢 公開中 (${activeAlbums.length})`],
+            ["expired", `🔒 公開終了 (${expiredAlbums.length})`],
+            ["new",     "➕ 新規作成"],
+          ].map(([key,label])=>(
             <button key={key} className="btn" onClick={()=>setTab(key)} style={{padding:"8px 18px",borderRadius:"20px",border:"none",fontSize:"13px",fontWeight:"600",background:tab===key?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:"#fff"}}>
               {label}
             </button>
           ))}
         </div>
 
-        {/* 新規作成フォーム */}
+        {/* 新規作成 */}
         {tab==="new" && (
           <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",padding:"24px",animation:"fadeUp 0.3s ease"}}>
             <h2 style={{fontSize:"15px",fontWeight:"600",marginBottom:"20px"}}>新しいアルバムを作成</h2>
             <div style={{display:"grid",gap:"14px"}}>
               <div>
-                <label style={labelStyle}>アルバムタイトル（お客さん名など）</label>
+                <label style={labelStyle}>アルバムタイトル</label>
                 <input style={inputStyle} placeholder="例: 山田様 2025年3月撮影" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
               </div>
               <div>
@@ -201,8 +264,8 @@ function AdminPanel({ onLogout }) {
                   <input type="date" style={inputStyle} value={form.expiry} onChange={e=>setForm({...form,expiry:e.target.value})}/>
                 </div>
               </div>
-              <button className="btn" onClick={createAlbum} style={{padding:"12px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600",marginTop:"4px"}}>
-                🚀 アルバムを作成してURLを発行
+              <button className="btn" onClick={createAlbum} disabled={saving} style={{padding:"12px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600",marginTop:"4px",opacity:saving?0.7:1}}>
+                {saving ? "作成中..." : "🚀 アルバムを作成してURLを発行"}
               </button>
             </div>
           </div>
@@ -210,63 +273,68 @@ function AdminPanel({ onLogout }) {
 
         {/* アルバム一覧 */}
         {(tab==="active" || tab==="expired") && (
-          <div style={{display:"grid",gap:"12px"}}>
-            {display.length===0 && (
-              <div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,0.3)",fontSize:"14px"}}>
-                {tab==="active"?"公開中のアルバムはありません":"公開終了のアルバムはありません"}
-              </div>
-            )}
-            {display.map(album => {
-              const left = daysLeft(album.expiry);
-              const expired = left <= 0;
-              const albumUrl = `${location.origin}${location.pathname}?a=${album.id}`;
-              return (
-                <div key={album.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${expired?"rgba(255,100,100,0.2)":"rgba(255,255,255,0.1)"}`,borderRadius:"14px",padding:"18px 20px",animation:"fadeUp 0.3s ease"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",flexWrap:"wrap"}}>
-                    <div style={{flex:1,minWidth:"200px"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-                        <span style={{fontSize:"16px",fontWeight:"600"}}>{album.title}</span>
-                        <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"10px",background:expired?"rgba(255,100,100,0.2)":"rgba(100,255,150,0.15)",color:expired?"#ff6b6b":"#48c774",fontWeight:"600"}}>
-                          {expired?"公開終了":`残り${left}日`}
-                        </span>
+          loading ? (
+            <div style={{textAlign:"center",padding:"60px 0"}}><Spinner/><p style={{color:"rgba(255,255,255,0.4)",fontSize:"13px",marginTop:"16px"}}>読み込み中...</p></div>
+          ) : (
+            <div style={{display:"grid",gap:"12px"}}>
+              {display.length===0 && (
+                <div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,0.3)",fontSize:"14px"}}>
+                  {tab==="active"?"公開中のアルバムはありません":"公開終了のアルバムはありません"}
+                </div>
+              )}
+              {display.map(album=>{
+                const left = daysLeft(album.expiry);
+                const expired = left <= 0;
+                const albumUrl = `${location.origin}${location.pathname}?a=${album.id}`;
+                return (
+                  <div key={album.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${expired?"rgba(255,100,100,0.2)":"rgba(255,255,255,0.1)"}`,borderRadius:"14px",padding:"18px 20px",animation:"fadeUp 0.3s ease"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",flexWrap:"wrap"}}>
+                      <div style={{flex:1,minWidth:"200px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px",flexWrap:"wrap"}}>
+                          <span style={{fontSize:"15px",fontWeight:"600"}}>{album.title}</span>
+                          <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"10px",background:expired?"rgba(255,100,100,0.2)":"rgba(100,255,150,0.15)",color:expired?"#ff6b6b":"#48c774",fontWeight:"600"}}>
+                            {expired?"公開終了":`残り${left}日`}
+                          </span>
+                        </div>
+                        <div style={{display:"grid",gap:"4px"}}>
+                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>👤 {album.clientName||"—"}</span>
+                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>🔑 パスワード: <span style={{color:"#a5b4fc",fontWeight:"600"}}>{album.password}</span></span>
+                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
+                            📅 公開期限:
+                            {editing===album.id ? (
+                              <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
+                                <input type="date" value={editExpiry} onChange={e=>setEditExpiry(e.target.value)}
+                                  style={{padding:"2px 8px",borderRadius:"6px",border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",outline:"none"}}/>
+                                <button className="btn" onClick={()=>updateExpiry(album.id)} style={{background:"#48c774",color:"#fff",padding:"3px 10px",borderRadius:"6px",fontSize:"11px",fontWeight:"600"}}>保存</button>
+                                <button className="btn" onClick={()=>setEditing(null)} style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"3px 8px",borderRadius:"6px",fontSize:"11px"}}>✕</button>
+                              </span>
+                            ) : (
+                              <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
+                                {fmtExpiry(album.expiry)}
+                                <button className="btn" onClick={()=>{setEditing(album.id);setEditExpiry(album.expiry);}} style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)",padding:"2px 8px",borderRadius:"6px",fontSize:"11px"}}>変更</button>
+                              </span>
+                            )}
+                          </span>
+                          <span style={{fontSize:"11px",color:"rgba(255,255,255,0.2)",marginTop:"2px",wordBreak:"break-all"}}>🔗 {albumUrl}</span>
+                        </div>
                       </div>
-                      <div style={{display:"grid",gap:"3px"}}>
-                        <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>👤 {album.clientName||"—"}</span>
-                        <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>🔑 パスワード: <span style={{color:"#a5b4fc",fontWeight:"600"}}>{album.password}</span></span>
-                        <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>
-                          📅 公開期限: {editing===album.id ? (
-                            <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
-                              <input type="date" value={editExpiry} onChange={e=>setEditExpiry(e.target.value)}
-                                style={{padding:"2px 8px",borderRadius:"6px",border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",outline:"none"}}/>
-                              <button className="btn" onClick={()=>updateExpiry(album.id)} style={{background:"#48c774",color:"#fff",padding:"2px 10px",borderRadius:"6px",fontSize:"11px",fontWeight:"600"}}>保存</button>
-                              <button className="btn" onClick={()=>setEditing(null)} style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"2px 8px",borderRadius:"6px",fontSize:"11px"}}>✕</button>
-                            </span>
-                          ) : (
-                            <span>
-                              {fmtExpiry(album.expiry)}
-                              <button className="btn" onClick={()=>{setEditing(album.id);setEditExpiry(album.expiry);}} style={{marginLeft:"8px",background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)",padding:"2px 8px",borderRadius:"6px",fontSize:"11px"}}>変更</button>
-                            </span>
-                          )}
-                        </span>
-                        <span style={{fontSize:"11px",color:"rgba(255,255,255,0.25)",marginTop:"2px",wordBreak:"break-all"}}>🔗 {albumUrl}</span>
+                      <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
+                        <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>
+                          {copied===album.id?"✓ コピー済":"🔗 URLコピー"}
+                        </button>
+                        <button className="btn" onClick={()=>window.open(albumUrl,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>
+                          👁 プレビュー
+                        </button>
+                        <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>
+                          🗑
+                        </button>
                       </div>
-                    </div>
-                    <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
-                      <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>
-                        {copied===album.id?"✓ コピー済":"🔗 URLコピー"}
-                      </button>
-                      <button className="btn" onClick={()=>window.open(albumUrl,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>
-                        👁 プレビュー
-                      </button>
-                      <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>
-                        🗑
-                      </button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
@@ -299,7 +367,7 @@ function ClientLogin({ album, onLogin }) {
 }
 
 // ════════════════════════════════════════════════
-// お客さん向けギャラリー
+// ギャラリー
 // ════════════════════════════════════════════════
 function Gallery({ album }) {
   const storageKey = `pg_favs_${album.id}`;
@@ -341,14 +409,11 @@ function Gallery({ album }) {
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e,#16213e)",color:"#fff",paddingBottom:"80px"}}>
-      {/* 期限切れバナー */}
       {expired && (
         <div style={{background:"rgba(255,100,100,0.15)",borderBottom:"1px solid rgba(255,100,100,0.3)",padding:"10px 16px",textAlign:"center",fontSize:"13px",color:"#ff6b6b"}}>
           🔒 このギャラリーは公開終了しました
         </div>
       )}
-
-      {/* ヘッダー */}
       <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(15,15,26,0.88)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"12px 16px"}}>
         <div style={{maxWidth:"1400px",margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px"}}>
@@ -362,7 +427,6 @@ function Gallery({ album }) {
             </div>
             <button className="btn" onClick={()=>setShowHelp(true)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",flexShrink:0}}>❓</button>
           </div>
-
           <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
             <button className="btn" onClick={()=>setFavOnly(v=>!v)} style={{padding:"6px 14px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:favOnly?"linear-gradient(135deg,#ff6b6b,#ee5a24)":"rgba(255,255,255,0.08)",color:favOnly?"#fff":"rgba(255,255,255,0.6)"}}>
               ♥ {favOnly?`お気に入りのみ (${favs.size})`:"お気に入りのみ"}
@@ -387,13 +451,9 @@ function Gallery({ album }) {
         </div>
       </header>
 
-      {/* グリッド */}
       <main style={{maxWidth:"1400px",margin:"0 auto",padding:"20px 12px"}}>
         {loading ? (
-          <div style={{textAlign:"center",padding:"80px 0"}}>
-            <div style={{width:"40px",height:"40px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto 16px"}}/>
-            <p style={{color:"rgba(255,255,255,0.4)",fontSize:"14px"}}>写真を読み込み中...</p>
-          </div>
+          <div style={{textAlign:"center",padding:"80px 0"}}><Spinner/><p style={{color:"rgba(255,255,255,0.4)",fontSize:"14px",marginTop:"16px"}}>写真を読み込み中...</p></div>
         ) : error ? (
           <div style={{textAlign:"center",padding:"80px 20px"}}>
             <p style={{color:"#ff6b6b",fontSize:"14px",marginBottom:"8px"}}>⚠️ 読み込みエラー</p>
@@ -432,14 +492,12 @@ function Gallery({ album }) {
         )}
       </main>
 
-      {/* スライダー */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:"rgba(10,10,20,0.94)",backdropFilter:"blur(16px)",borderTop:"1px solid rgba(255,255,255,0.08)",padding:"10px 20px",paddingBottom:"calc(10px + env(safe-area-inset-bottom))",display:"flex",alignItems:"center",justifyContent:"center",gap:"12px"}}>
         <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",whiteSpace:"nowrap"}}>🖼 サイズ</span>
         <input type="range" min="120" max="360" value={thumbSize} onChange={e=>setThumbSize(Number(e.target.value))} style={{width:"140px"}}/>
         <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",width:"32px"}}>{thumbSize}</span>
       </div>
 
-      {/* 拡大モーダル */}
       {selected && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.94)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={()=>setSelected(null)}>
           <div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"min(90vw,700px)",width:"100%"}}>
@@ -462,7 +520,6 @@ function Gallery({ album }) {
         </div>
       )}
 
-      {/* 使い方モーダル */}
       {showHelp && (
         <div onClick={()=>setShowHelp(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
           <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"440px",width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
@@ -472,7 +529,7 @@ function Gallery({ album }) {
             </div>
             {[
               ["❤️","お気に入り","ハートをタップして登録。「♥ お気に入りのみ」で絞り込めます。"],
-              ["☑️","複数選択保存","「複数選択」ボタンで選択モードに。チェックして「全選択」も可。まとめて保存できます。"],
+              ["☑️","複数選択保存","「複数選択」ボタンで選択モードに。「全選択」も可。まとめて保存できます。"],
               ["📸","拡大・保存","写真をタップして拡大。元画像サイズで保存できます。"],
               ["📤","共有","拡大表示中にLINEまたはメールで共有できます。"],
               ["↕️","並び替え","撮影日・ファイル名の昇順/降順で並び替えられます。"],
@@ -495,7 +552,7 @@ function Gallery({ album }) {
 }
 
 // ════════════════════════════════════════════════
-// ルーター（メインコンポーネント）
+// ルーター
 // ════════════════════════════════════════════════
 function App() {
   const params = new URLSearchParams(location.search);
@@ -503,19 +560,32 @@ function App() {
   const isAdmin = params.get("admin") === "1";
 
   const [adminLoggedIn, setAdminLoggedIn] = useState(()=>sessionStorage.getItem("pg_admin")==="1");
-  const [clientAuth, setClientAuth] = useState(()=>sessionStorage.getItem(`pg_client_${albumId}`)==="1");
+  const [clientAuth,    setClientAuth]    = useState(()=>sessionStorage.getItem(`pg_client_${albumId}`)==="1");
+  const [album,         setAlbum]         = useState(null);
+  const [albumLoading,  setAlbumLoading]  = useState(!!albumId);
+  const [albumNotFound, setAlbumNotFound] = useState(false);
 
-  // 管理者画面
+  // アルバムページならスプシからデータ取得
+  useEffect(()=>{
+    if (!albumId) return;
+    gasGet("getAlbums").then(data=>{
+      const found = (Array.isArray(data)?data:[]).find(a=>a.id===albumId);
+      if (found) setAlbum(found); else setAlbumNotFound(true);
+    }).catch(()=>setAlbumNotFound(true)).finally(()=>setAlbumLoading(false));
+  },[albumId]);
+
   if (isAdmin) {
     if (!adminLoggedIn) return <AdminLogin onLogin={()=>{sessionStorage.setItem("pg_admin","1");setAdminLoggedIn(true);}}/>;
     return <AdminPanel onLogout={()=>{sessionStorage.removeItem("pg_admin");setAdminLoggedIn(false);}}/>;
   }
 
-  // アルバムページ
   if (albumId) {
-    const albums = loadAlbums();
-    const album = albums.find(a=>a.id===albumId);
-    if (!album) return (
+    if (albumLoading) return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0f0f1a"}}>
+        <Spinner/>
+      </div>
+    );
+    if (albumNotFound || !album) return (
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0f0f1a",color:"#fff",flexDirection:"column",gap:"12px"}}>
         <div style={{fontSize:"48px"}}>🔍</div>
         <p style={{color:"rgba(255,255,255,0.5)"}}>アルバムが見つかりません</p>
@@ -525,11 +595,10 @@ function App() {
     return <Gallery album={album}/>;
   }
 
-  // トップページ（何も指定なし）
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#0f0f1a,#1a1a2e)",color:"#fff",flexDirection:"column",gap:"16px",padding:"20px",textAlign:"center"}}>
       <div style={{fontSize:"56px"}}>📷</div>
-      <h1 style={{fontSize:"22px",fontWeight:"300",letterSpacing:"0.2em"}}>PHOTO GALLERY</h1>
+      <h1 style={{fontSize:"22px",fontWeight:"300",letterSpacing:"0.2em"}}>Kaho's Photo</h1>
       <p style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>お客さまから届いたURLでアクセスしてください</p>
       <a href="?admin=1" style={{marginTop:"24px",color:"rgba(255,255,255,0.2)",fontSize:"11px",textDecoration:"none"}}>管理者の方はこちら</a>
     </div>
