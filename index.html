@@ -411,6 +411,13 @@ function ClientLogin({album,onLogin}) {
           style={{width:"100%",padding:"14px 16px",borderRadius:"12px",border:`1.5px solid ${err?"#ff6b6b":"rgba(255,255,255,0.15)"}`,background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"16px",outline:"none",letterSpacing:"0.08em",boxSizing:"border-box"}}/>
         {err&&<p style={{color:"#ff6b6b",fontSize:"12px",marginTop:"8px",textAlign:"center"}}>パスワードが違います</p>}
         <button className="btn" onClick={submit} style={{width:"100%",marginTop:"16px",padding:"14px",borderRadius:"12px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"15px",fontWeight:"600"}}>ギャラリーを見る</button>
+        <div style={{marginTop:"20px",padding:"12px 14px",borderRadius:"12px",background:"rgba(255,193,7,0.1)",border:"1px solid rgba(255,193,7,0.3)",display:"flex",gap:"10px",alignItems:"flex-start"}}>
+          <span style={{fontSize:"18px",flexShrink:0}}>⚠️</span>
+          <div>
+            <p style={{color:"#ffc107",fontSize:"12px",fontWeight:"600",marginBottom:"4px"}}>ブラウザで開いてください</p>
+            <p style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",lineHeight:"1.6"}}>LINEアプリ内のブラウザでは、写真のダウンロードが正しく動作しない場合があります。<br/>右上の「...」→「ブラウザで開く」を選択してください。</p>
+          </div>
+        </div>
       </div>
     </div>
   );
