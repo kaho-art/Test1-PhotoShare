@@ -303,28 +303,42 @@ function AdminPanel({onLogout}) {
 // チャット
 // ════════════════════════════════════════════════
 function Chat({albumId, albumTitle}) {
-  const key = `pg_chat_${albumId}`;
-  const [messages, setMessages] = useState(()=>{ try{return JSON.parse(localStorage.getItem(key)||"[]")}catch{return [];} });
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [name, setName] = useState(()=>localStorage.getItem(`pg_chat_name_${albumId}`)||"");
   const [nameSet, setNameSet] = useState(!!localStorage.getItem(`pg_chat_name_${albumId}`));
+  const [loading, setLoading] = useState(true);
   const bottomRef = useRef(null);
 
-  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  const loadMessages = async () => {
+    try {
+      const data = await gasGet(`getMessages&albumId=${albumId}`);
+      if (Array.isArray(data)) setMessages(data);
+    } catch(e) {}
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    if (!nameSet) { setLoading(false); return; }
+    loadMessages();
+    const timer = setInterval(loadMessages, 5000);
+    return () => clearInterval(timer);
+  }, [nameSet]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
 
   const saveName = () => {
-    if(!name.trim()) return;
+    if (!name.trim()) return;
     localStorage.setItem(`pg_chat_name_${albumId}`, name.trim());
     setNameSet(true);
   };
 
-  const sendMsg = () => {
-    if(!input.trim()) return;
-    const msg = { id:genId(), name, text:input.trim(), time:jstNow() };
-    const next = [...messages, msg];
-    setMessages(next);
-    localStorage.setItem(key, JSON.stringify(next));
+  const sendMsg = async () => {
+    if (!input.trim()) return;
+    const msg = { id:genId(), albumId, name, text:input.trim(), time:jstNow() };
+    setMessages(prev => [...prev, msg]);
     setInput("");
+    try { await gasPost({action:"sendMessage", message:msg}); } catch(e) {}
   };
 
   return (
@@ -339,14 +353,15 @@ function Chat({albumId, albumTitle}) {
       ) : (
         <>
           <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:"10px"}}>
-            {messages.length===0&&<div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"13px",padding:"40px 0"}}>メッセージはまだありません</div>}
-            {messages.map(msg=>(
-              <div key={msg.id} className="chat-msg" style={{display:"flex",flexDirection:"column",gap:"2px"}}>
+            {loading && <div style={{textAlign:"center",padding:"20px 0"}}><Spinner/></div>}
+            {!loading && messages.length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"13px",padding:"40px 0"}}>メッセージはまだありません</div>}
+            {messages.map((msg,i)=>(
+              <div key={msg.id||i} className="chat-msg" style={{display:"flex",flexDirection:"column",gap:"2px"}}>
                 <div style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
-                  <span style={{fontSize:"12px",fontWeight:"600",color:"#a5b4fc"}}>{msg.name}</span>
+                  <span style={{fontSize:"12px",fontWeight:"600",color:msg.name===name?"#a5b4fc":"#86efac"}}>{msg.name}</span>
                   <span style={{fontSize:"10px",color:"rgba(255,255,255,0.3)"}}>{msg.time}</span>
                 </div>
-                <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"0 12px 12px 12px",padding:"8px 12px",fontSize:"13px",color:"#fff",lineHeight:"1.5",wordBreak:"break-word",maxWidth:"85%"}}>
+                <div style={{background:msg.name===name?"rgba(102,126,234,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${msg.name===name?"rgba(102,126,234,0.3)":"rgba(255,255,255,0.08)"}`,borderRadius:msg.name===name?"12px 0 12px 12px":"0 12px 12px 12px",padding:"8px 12px",fontSize:"13px",color:"#fff",lineHeight:"1.5",wordBreak:"break-word",maxWidth:"85%",alignSelf:msg.name===name?"flex-end":"flex-start"}}>
                   {msg.text}
                 </div>
               </div>
@@ -359,7 +374,7 @@ function Chat({albumId, albumTitle}) {
             <button className="btn" onClick={sendMsg} style={{padding:"10px 16px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600",flexShrink:0}}>送信</button>
           </div>
           <div style={{padding:"6px 16px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:"10px",color:"rgba(255,255,255,0.2)"}}>名前: {name}</span>
+            <span style={{fontSize:"10px",color:"rgba(255,255,255,0.2)"}}>名前: {name} &nbsp;|&nbsp; 5秒ごとに自動更新</span>
             <button className="btn" onClick={()=>{localStorage.removeItem(`pg_chat_name_${albumId}`);setNameSet(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.2)",fontSize:"10px",padding:0}}>名前を変更</button>
           </div>
         </>
@@ -367,7 +382,6 @@ function Chat({albumId, albumTitle}) {
     </div>
   );
 }
-
 // ════════════════════════════════════════════════
 // お客さんログイン
 // ════════════════════════════════════════════════
@@ -470,6 +484,9 @@ function Gallery({album}) {
               ):(
                 <button className="btn" onClick={()=>setShowChat(v=>!v)} style={{background:showChat?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>💬 チャット</button>
               )}
+              <button className="btn" onClick={()=>window.open(OWNER_LINE_URL,"_blank")} style={{background:"#06c755",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600",display:"flex",alignItems:"center",gap:"4px"}}>
+                <span style={{fontSize:"16px"}}>+</span>LINE追加
+              </button>
               <button className="btn" onClick={()=>setShowHelp(true)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>❓</button>
             </div>
           </div>
