@@ -157,7 +157,7 @@ function AdminPanel({onLogout}) {
     const folderId=extractFolderId(form.folderUrl);
     if(!folderId){showMsg("⚠️ フォルダURLが正しくありません");return;}
     setSaving(true);
-    const album={id:genId(),title:form.title,clientName:form.clientName,folderId,password:form.password,expiry:form.expiry,lineUrl:form.lineUrl,createdAt:new Date().toISOString()};
+    const album={id:genId(),title:form.title,clientName:form.clientName,folderId,password:form.password,expiry:form.expiry,lineUrl:form.lineUrl,createdAt:jstNow()};
     try{
       await gasPost({action:"saveAlbum",album});
       setAlbums(prev=>[...prev,album]);
