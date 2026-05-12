@@ -87,26 +87,32 @@ const CheckIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" stroke="
 
 // マーク管理フック
 function useMarks(albumId) {
-  const key = `pg_marks_${albumId}`;
-  const [marks, setMarks] = useState(()=>{
-    try{ return JSON.parse(localStorage.getItem(key)||"{}"); }catch{ return {}; }
-  });
-  const toggleMark = useCallback((photoId, markKey)=>{
+  const [marks, setMarks] = useState({});
+
+  useEffect(()=>{
+    gasGet(`getMarks&albumId=${albumId}`).then(data=>{
+      if(data && typeof data==="object" && !Array.isArray(data)) setMarks(data);
+    }).catch(()=>{});
+  },[albumId]);
+
+  const toggleMark = useCallback(async (photoId, markKey)=>{
+    // 楽観的更新（即座に見た目を変える）
     setMarks(prev=>{
-      const cur = prev[photoId]||{};
-      const next = {...prev, [photoId]:{...cur,[markKey]:!cur[markKey]}};
+      const cur=prev[photoId]||{};
+      const next={...prev,[photoId]:{...cur,[markKey]:!cur[markKey]}};
       if(!next[photoId][markKey]) delete next[photoId][markKey];
       if(Object.keys(next[photoId]).length===0) delete next[photoId];
-      localStorage.setItem(key,JSON.stringify(next));
       return next;
     });
-  },[key]);
-  const hasMark = (photoId, markKey) => !!(marks[photoId]?.[markKey]);
-  const hasAnyMark = (photoId) => !!(marks[photoId] && Object.keys(marks[photoId]).length>0);
-  const countMark = (markKey) => Object.values(marks).filter(m=>m[markKey]).length;
-  return { marks, toggleMark, hasMark, hasAnyMark, countMark };
-}
+    // スプレッドシートに保存
+    try{ await gasPost({action:"toggleMark",albumId,photoId,markKey}); }catch(e){}
+  },[albumId]);
 
+  const hasMark=(photoId,markKey)=>!!(marks[photoId]?.[markKey]);
+  const hasAnyMark=(photoId)=>!!(marks[photoId]&&Object.keys(marks[photoId]).length>0);
+  const countMark=(markKey)=>Object.values(marks).filter(m=>m[markKey]).length;
+  return {marks,toggleMark,hasMark,hasAnyMark,countMark};
+}
 // ════════════════════════════════════════════════
 // 管理者ログイン
 // ════════════════════════════════════════════════
