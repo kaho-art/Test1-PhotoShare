@@ -62,12 +62,18 @@ const driveDownload = (id) => `https://drive.google.com/uc?export=download&id=${
 
 async function fetchDrivePhotos(folderId) {
   const q=encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
-  const fields=encodeURIComponent("files(id,name,imageMediaMetadata,createdTime,mimeType)");
-  const url=`https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${GOOGLE_API_KEY}&orderBy=name`;
-  const res=await fetch(url);
-  if(!res.ok) throw new Error("APIエラー: "+res.status);
-  const data=await res.json();
-  return (data.files||[]).map(f=>({
+  const fields=encodeURIComponent("nextPageToken,files(id,name,imageMediaMetadata,createdTime,mimeType)");
+  const baseUrl=`https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${GOOGLE_API_KEY}&orderBy=name`;
+  let allFiles=[]; let pageToken=null;
+  do {
+    const url=pageToken?`${baseUrl}&pageToken=${pageToken}`:baseUrl;
+    const res=await fetch(url);
+    if(!res.ok) throw new Error("APIエラー: "+res.status);
+    const data=await res.json();
+    allFiles=[...allFiles,...(data.files||[])];
+    pageToken=data.nextPageToken||null;
+  } while(pageToken);
+  return allFiles.map(f=>({
     id:f.id, filename:f.name,
     takenAt:f.imageMediaMetadata?.time
       ?new Date(f.imageMediaMetadata.time.replace(/(\d{4}):(\d{2}):(\d{2})/,"$1-$2-$3")).toISOString()
@@ -451,7 +457,7 @@ function Gallery({album}) {
   const availableDates=useMemo(()=>{const d=new Set(photos.map(p=>fmtDate(p.takenAt)));return[...d].sort().reverse();},[photos]);
 
   const displayPhotos=useMemo(()=>[...photos]
-    .filter(p=>!filterMark||hasMark(p.id,filterMark))
+    .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
     .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
   ,[photos,filterMark,filterDate,sortKey,sortDir,marks]);
