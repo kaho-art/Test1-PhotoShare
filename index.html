@@ -110,6 +110,29 @@ function useMarks(albumId) {
   return {marks,toggleMark,hasMark,hasAnyMark,countMark};
 }
 
+function useComments(albumId) {
+  const [comments, setComments] = useState({});
+  const loadComments = useCallback(async()=>{
+    try{ const d=await gasGet(`getComments&albumId=${albumId}`); if(d&&typeof d==="object"&&!Array.isArray(d)) setComments(d); }catch(e){}
+  },[albumId]);
+  useEffect(()=>{ loadComments(); },[loadComments]);
+
+  const addComment = useCallback(async(photoId, name, text)=>{
+    const comment = {id:genId(), name, text, time:jstNow()};
+    setComments(prev=>({...prev,[photoId]:[...(prev[photoId]||[]),comment]}));
+    try{ await gasPost({action:"saveComment",albumId,photoId,comment}); }catch(e){}
+  },[albumId]);
+
+  const removeComment = useCallback(async(photoId, commentId)=>{
+    setComments(prev=>({...prev,[photoId]:(prev[photoId]||[]).filter(c=>c.id!==commentId)}));
+    try{ await gasPost({action:"deleteComment",albumId,commentId}); }catch(e){}
+  },[albumId]);
+
+  const hasComment = (photoId) => !!(comments[photoId]&&comments[photoId].length>0);
+  const countCommented = () => Object.values(comments).filter(cs=>cs&&cs.length>0).length;
+  return {comments,addComment,removeComment,hasComment,countCommented,loadComments};
+}
+
 const Spinner = () => <div style={{width:"36px",height:"36px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>;
 const CheckIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg>;
 
@@ -416,9 +439,14 @@ function ClientLogin({album,onLogin}) {
 
 function Gallery({album}) {
   const {marks,toggleMark,hasMark,hasAnyMark,countMark}=useMarks(album.id);
+  const {comments,addComment,removeComment,hasComment,countCommented}=useComments(album.id);
   const [photos,setPhotos]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(null);
   const [selectedIdx,setSelectedIdx]=useState(null);
   const [filterMark,setFilterMark]=useState("");
+  const [filterComment,setFilterComment]=useState(false);
+  const [commentTarget,setCommentTarget]=useState(null); // コメント入力対象のphotoId
+  const [commentName,setCommentName]=useState(()=>localStorage.getItem('pg_cname')||'');
+  const [commentText,setCommentText]=useState('');
   const [thumbSize,setThumbSize]=useState(200);
   const [sortKey,setSortKey]=useState("takenAt"); const [sortDir,setSortDir]=useState("desc");
   const [showHelp,setShowHelp]=useState(false); const [showChat,setShowChat]=useState(false);
@@ -432,9 +460,10 @@ function Gallery({album}) {
   const availableDates=useMemo(()=>{const d=new Set(photos.map(p=>fmtDate(p.takenAt)));return[...d].sort().reverse();},[photos]);
   const displayPhotos=useMemo(()=>[...photos]
     .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
+    .filter(p=>!filterComment||hasComment(p.id))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
     .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
-  ,[photos,filterMark,filterDate,sortKey,sortDir,marks]);
+  ,[photos,filterMark,filterComment,filterDate,sortKey,sortDir,marks,comments]);
 
   const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
   const downloadSelected=()=>{
@@ -488,6 +517,9 @@ function Gallery({album}) {
                 {m.emoji}{filterMark===m.key?` (${countMark(m.key)})`:""}
               </button>
             ))}
+            <button className="btn" onClick={()=>setFilterComment(v=>!v)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterComment?"rgba(96,165,250,0.8)":"rgba(255,255,255,0.08)",color:"#fff"}}>
+              📝{filterComment?` (${countCommented()})`:""}
+            </button>
             <button className="btn" onClick={()=>{setSelectMode(v=>!v);if(selectMode)clearSelect();}} style={{padding:"6px 14px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:selectMode?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:selectMode?"#fff":"rgba(255,255,255,0.6)"}}>
               ☑️ {selectMode?"選択中":"複数選択"}
             </button>
@@ -549,6 +581,11 @@ function Gallery({album}) {
                       {activeMarks.map(m=><span key={m.key} style={{fontSize:"14px",filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.8))"}}>{m.emoji}</span>)}
                     </div>
                   )}
+                  {hasComment(photo.id)&&(
+                    <div style={{position:"absolute",bottom:"22px",right:"6px",background:"rgba(96,165,250,0.9)",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",color:"#fff",fontWeight:"600"}}>
+                      📝 {comments[photo.id]?.length}
+                    </div>
+                  )}
                   {!selectMode&&(
                     <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
                       {MARKS.map(m=>(
@@ -607,6 +644,38 @@ function Gallery({album}) {
             ))}
           </div>
           <button className="btn" onClick={()=>setSelectedIdx(null)} style={{marginTop:"12px",background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"rgba(255,255,255,0.5)",padding:"7px 24px",borderRadius:"20px",fontSize:"13px"}}>閉じる</button>
+
+          {/* コメントセクション */}
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:"min(85vw,700px)",marginTop:"12px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"14px",padding:"14px",boxSizing:"border-box"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+              <span style={{fontSize:"13px",fontWeight:"600",color:"#fff"}}>📝 コメント</span>
+              <button className="btn" onClick={()=>setCommentTarget(commentTarget===selected?.id?null:selected?.id)} style={{background:"rgba(96,165,250,0.2)",border:"1px solid rgba(96,165,250,0.4)",color:"#93c5fd",padding:"4px 12px",borderRadius:"14px",fontSize:"11px"}}>
+                {commentTarget===selected?.id?"キャンセル":"+ 追加"}
+              </button>
+            </div>
+            {(comments[selected?.id]||[]).length===0&&commentTarget!==selected?.id&&(
+              <p style={{color:"rgba(255,255,255,0.3)",fontSize:"12px",textAlign:"center",padding:"8px 0"}}>まだコメントがありません</p>
+            )}
+            {(comments[selected?.id]||[]).map(c=>(
+              <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"8px 10px",background:"rgba(255,255,255,0.04)",borderRadius:"10px",marginBottom:"6px"}}>
+                <div>
+                  <span style={{fontSize:"11px",fontWeight:"600",color:"#a5b4fc",marginRight:"8px"}}>{c.name}</span>
+                  <span style={{fontSize:"12px",color:"#fff"}}>{c.text}</span>
+                  <div style={{fontSize:"10px",color:"rgba(255,255,255,0.3)",marginTop:"2px"}}>{c.time}</div>
+                </div>
+                <button className="btn" onClick={()=>removeComment(selected?.id,c.id)} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.3)",fontSize:"14px",padding:"0 4px",flexShrink:0}}>✕</button>
+              </div>
+            ))}
+            {commentTarget===selected?.id&&(
+              <div style={{marginTop:"8px",display:"grid",gap:"6px"}}>
+                <input value={commentName} onChange={e=>{setCommentName(e.target.value);localStorage.setItem('pg_cname',e.target.value);}} placeholder="名前" style={{padding:"8px 10px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"12px",outline:"none"}}/>
+                <div style={{display:"flex",gap:"6px"}}>
+                  <input value={commentText} onChange={e=>setCommentText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&commentName.trim()&&commentText.trim()){addComment(selected?.id,commentName.trim(),commentText.trim());setCommentText('');setCommentTarget(null);}}} placeholder="コメントを入力（例: 物販１、フォトブ）" style={{flex:1,padding:"8px 10px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"12px",outline:"none"}}/>
+                  <button className="btn" onClick={()=>{if(commentName.trim()&&commentText.trim()){addComment(selected?.id,commentName.trim(),commentText.trim());setCommentText('');setCommentTarget(null);}}} style={{padding:"8px 14px",borderRadius:"8px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"12px",fontWeight:"600",flexShrink:0}}>送信</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
