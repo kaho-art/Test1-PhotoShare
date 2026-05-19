@@ -142,23 +142,6 @@ function AdminLogin({onLogin}) {
           style={{width:"100%",padding:"13px 15px",borderRadius:"10px",border:`1.5px solid ${err?"#ff6b6b":"rgba(255,255,255,0.15)"}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"15px",outline:"none",boxSizing:"border-box"}}/>
         {err&&<p style={{color:"#ff6b6b",fontSize:"12px",marginTop:"8px",textAlign:"center"}}>パスワードが違います</p>}
         <button className="btn" onClick={submit} style={{width:"100%",marginTop:"14px",padding:"13px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600"}}>ログイン</button>
-
-    {editingInfo&&(
-      <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
-          <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
-          <div style={{display:"grid",gap:"12px"}}>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>アルバムタイトル</label><input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>お客さんの名前</label><input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>パスワード</label><input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
-              <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
-              <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
       </div>
     </div>
   );
@@ -339,8 +322,8 @@ function AdminPanel({onLogout}) {
             </div>
           )
         )}
-
-    {editingInfo&&(
+      </div>
+{editingInfo&&(
       <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
         <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
           <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
@@ -356,7 +339,7 @@ function AdminPanel({onLogout}) {
         </div>
       </div>
     )}
-      </div>
+
     </div>
   );
 }
@@ -776,3 +759,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
+{editingInfo&&(
+      <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
+          <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
+          <div style={{display:"grid",gap:"12px"}}>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>アルバムタイトル</label><input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>お客さんの名前</label><input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>パスワード</label><input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
+              <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
+              <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
