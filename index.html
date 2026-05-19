@@ -61,6 +61,7 @@ const extractFolderId = (url) => { const m=url.match(/folders\/([a-zA-Z0-9_-]+)/
 const driveThumb = (id) => `https://lh3.googleusercontent.com/d/${id}=w400`;
 const driveView  = (id) => `https://lh3.googleusercontent.com/d/${id}=w1920`;
 const driveDownload = (id) => `https://drive.google.com/uc?export=download&id=${id}`;
+const driveVideoStream = (id) => `https://drive.google.com/file/d/${id}/preview`;
 
 async function fetchDrivePhotos(folderId) {
   const q=encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
@@ -77,6 +78,8 @@ async function fetchDrivePhotos(folderId) {
   } while(pageToken);
   return allFiles.map(f=>({
     id:f.id, filename:f.name,
+    mimeType:f.mimeType||"",
+    isVideo:(f.mimeType||"").startsWith("video/"),
     takenAt:f.imageMediaMetadata?.time
       ?new Date(f.imageMediaMetadata.time.replace(/(\d{4}):(\d{2}):(\d{2})/,"$1-$2-$3")).toISOString()
       :f.createdTime,
@@ -153,6 +156,8 @@ function AdminPanel({onLogout}) {
   const [tab,setTab]=useState("active");
   const [form,setForm]=useState({title:"",folderUrl:"",password:"",expiry:"",clientName:"",lineUrl:""});
   const [editing,setEditing]=useState(null); const [editExpiry,setEditExpiry]=useState("");
+  const [editingInfo,setEditingInfo]=useState(null); // タイトル・顧客名・PW編集
+  const [editForm,setEditForm]=useState({title:"",clientName:"",password:""});
   const [copied,setCopied]=useState(null); const [msg,setMsg]=useState("");
 
   const showMsg=(t)=>{setMsg(t);setTimeout(()=>setMsg(""),2500);};
@@ -184,6 +189,14 @@ function AdminPanel({onLogout}) {
   const updateExpiry=async(id)=>{
     try{ await gasPost({action:"updateExpiry",id,expiry:editExpiry}); setAlbums(prev=>prev.map(a=>a.id===id?{...a,expiry:editExpiry}:a)); setEditing(null); showMsg("✅ 期限を更新しました"); }catch(e){showMsg("エラー: "+e.message);}
   };
+  const updateAlbumInfo=async(id)=>{
+    try{
+      await gasPost({action:"updateAlbum",id,fields:editForm});
+      setAlbums(prev=>prev.map(a=>a.id===id?{...a,...editForm}:a));
+      setEditingInfo(null); showMsg("✅ 更新しました");
+    }catch(e){showMsg("エラー: "+e.message);}
+  };
+
   const deleteAlbum=async(id)=>{
     if(!confirm("削除しますか？"))return;
     try{ await gasPost({action:"deleteAlbum",id}); setAlbums(prev=>prev.filter(a=>a.id!==id)); showMsg("🗑 削除しました"); }catch(e){showMsg("エラー: "+e.message);}
@@ -299,6 +312,7 @@ function AdminPanel({onLogout}) {
                       <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
                         <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{copied===album.id?"✓ コピー済":"🔗 URLコピー"}</button>
                         <button className="btn" onClick={()=>window.open(`${location.origin}${location.pathname}?a=${album.id}`,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>👁 プレビュー</button>
+                        <button className="btn" onClick={()=>{setEditingInfo(album.id);setEditForm({title:album.title,clientName:album.clientName||"",password:album.password});}} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,193,7,0.15)",color:"#ffc107",fontSize:"12px"}}>✏️</button>
                         <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>🗑</button>
                       </div>
                     </div>
@@ -393,6 +407,24 @@ function Chat({albumId, albumTitle}) {
           </div>
         </>
       )}
+
+
+    {editingInfo&&(
+      <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
+          <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
+          <div style={{display:"grid",gap:"12px"}}>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>アルバムタイトル</label><input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>お客さんの名前</label><input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>パスワード</label><input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
+            <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
+              <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
+              <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
@@ -406,7 +438,7 @@ function ClientLogin({album,onLogin}) {
       try{
         const r=await fetch("https://ipapi.co/json/").catch(()=>null);
         const d=r?await r.json().catch(()=>({})):{};
-        const region=d.city?`${d.country_name} / ${d.city}`:"不明";
+        const region=d.city?`${d.city}（${d.region}）`:"不明";
         await gasPost({action:"addLog",log:{albumId:album.id,albumTitle:album.title,accessedAt:jstNow(),region}});
       }catch(e){}
       onLogin(); return;
@@ -496,6 +528,10 @@ function Gallery({album}) {
                 <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>
                   {expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}
                 </span>
+              <div style={{marginTop:"6px",display:"grid",gap:"2px"}}>
+                <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
+                <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要や編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
+              </div>
               </div>
             </div>
             <div style={{display:"flex",gap:"6px",flexShrink:0}}>
@@ -569,7 +605,14 @@ function Gallery({album}) {
               return (
                 <div key={photo.id} className="tc" onClick={()=>selectMode?toggleCheck(photo.id):setSelectedIdx(idx)}
                   style={{position:"relative",borderRadius:"10px",overflow:"hidden",background:"#1a1a2e",aspectRatio:"4/3",boxShadow:isChecked?"0 0 0 3px #667eea":"0 4px 16px rgba(0,0,0,0.3)",transition:"box-shadow 0.15s"}}>
-                  <img src={driveThumb(photo.id)} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                  {photo.isVideo?(
+                    <div style={{width:"100%",height:"100%",background:"#111",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"8px"}}>
+                      <span style={{fontSize:"36px"}}>🎬</span>
+                      <span style={{fontSize:"10px",color:"rgba(255,255,255,0.5)",padding:"0 8px",textAlign:"center",wordBreak:"break-all"}}>{photo.filename}</span>
+                    </div>
+                  ):(
+                    <img src={driveThumb(photo.id)} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                  )}
                   <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"20px 8px 6px",fontSize:"10px",color:"rgba(255,255,255,0.8)"}}>{fmtDate(photo.takenAt)}</div>
 
                   {/* 付いてるマークを表示 */}
@@ -611,7 +654,11 @@ function Gallery({album}) {
           <button className="btn" onClick={goPrev} style={{position:"fixed",left:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>‹</button>
           <button className="btn" onClick={goNext} style={{position:"fixed",right:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>›</button>
           <div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"min(85vw,700px)",width:"100%"}}>
-            <img src={driveView(selected.id)} alt="" style={{width:"100%",maxHeight:"58vh",objectFit:"contain",borderRadius:"10px",display:"block"}}/>
+            {selected.isVideo?(
+              <iframe src={driveVideoStream(selected.id)} style={{width:"100%",height:"56vh",borderRadius:"10px",border:"none",display:"block"}} allow="autoplay" allowFullScreen/>
+            ):(
+              <img src={driveView(selected.id)} alt="" style={{width:"100%",maxHeight:"58vh",objectFit:"contain",borderRadius:"10px",display:"block"}}/>
+            )}
             <div style={{position:"absolute",bottom:"10px",left:"10px",background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:"11px",padding:"4px 10px",borderRadius:"20px",backdropFilter:"blur(4px)"}}>
               📅 {fmt(selected.takenAt)} ({selectedIdx+1}/{displayPhotos.length})
             </div>
