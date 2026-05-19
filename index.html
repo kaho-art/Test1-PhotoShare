@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f0f1a" />
   <link rel="manifest" href="manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Gallery" />
@@ -21,39 +22,35 @@
     ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
     .tc { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
     .tc:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.5) !important; }
-    .mark-btn { opacity: 0; transition: opacity 0.15s; }
-    .tc:hover .mark-btn, .mark-btn.on { opacity: 1 !important; }
+    .mb { opacity: 0; transition: opacity 0.15s; }
+    .tc:hover .mb, .mb.on { opacity: 1 !important; }
     select option { background: #1a1a2e; }
     input[type=range] { accent-color: #667eea; cursor: pointer; }
     input, select, textarea { font-family: inherit; }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
-    @keyframes spin { to { transform: rotate(360deg); } }
     .btn { border: none; cursor: pointer; font-family: inherit; transition: opacity 0.15s; }
     .btn:hover { opacity: 0.82; }
-    .chat-msg { animation: fadeUp 0.2s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
+
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
-// ══════════════════════════════════════════════
-// ★ 設定 ★
 const ADMIN_PASSWORD = "rio100sn";
 const GOOGLE_API_KEY = "AIzaSyCWXdWrHMYAT5Lsm9W3A-aUJbIe1OaSkE4";
 const GAS_URL = "https://script.google.com/macros/s/AKfycbztpU_bNc09NP7poBUAQfcljjdjUjxoMWfRwtEnriXJxYDpAm1uI_lcR20vAWL98GvQ/exec";
-const OWNER_LINE_URL = "https://line.me/ti/p/7AbKUgBHvp"; // こてらかほのLINE
-// ══════════════════════════════════════════════
+const OWNER_LINE_URL = "https://line.me/ti/p/7AbKUgBHvp";
 
-const gasGet = async (action) => { const r=await fetch(`${GAS_URL}?action=${action}`); return r.json(); };
-const gasPost = async (data) => { const r=await fetch(GAS_URL,{method:"POST",body:JSON.stringify(data)}); return r.json(); };
-
+const gasGet = async (action) => { const r = await fetch(`${GAS_URL}?action=${action}`); return r.json(); };
+const gasPost = async (data) => { const r = await fetch(GAS_URL, { method:"POST", body:JSON.stringify(data) }); return r.json(); };
 const genId = () => Math.random().toString(36).slice(2,10);
-const jstNow = () => new Date().toLocaleString("ja-JP",{timeZone:"Asia/Tokyo"});
-const fmt = (iso) => { if(!iso) return "—"; const d=new Date(iso); return d.toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).replace(/\//g,"."); };
-const fmtDate = (iso) => { if(!iso) return "—"; const d=new Date(iso); return d.toLocaleDateString("ja-JP",{timeZone:"Asia/Tokyo",year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\//g,"."); };
+const jstNow = () => new Date().toLocaleString("ja-JP", {timeZone:"Asia/Tokyo"});
+const fmt = (iso) => { if(!iso) return "—"; return new Date(iso).toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).replace(/\//g,"."); };
+const fmtDate = (iso) => { if(!iso) return "—"; return new Date(iso).toLocaleDateString("ja-JP",{timeZone:"Asia/Tokyo",year:"numeric",month:"2-digit",day:"2-digit"}).replace(/\//g,"."); };
 const fmtExpiry = (s) => { if(!s) return "—"; const d=new Date(s); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`; };
 const daysLeft = (s) => Math.ceil((new Date(s)-Date.now())/86400000);
 const isExpired = (s) => daysLeft(s)<=0;
@@ -63,51 +60,41 @@ const driveView  = (id) => `https://lh3.googleusercontent.com/d/${id}=w1920`;
 const driveDownload = (id) => `https://drive.google.com/uc?export=download&id=${id}`;
 const driveVideoStream = (id) => `https://drive.google.com/file/d/${id}/preview`;
 
-async function fetchDrivePhotos(folderId) {
-  const q=encodeURIComponent(`'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed=false`);
-  const fields=encodeURIComponent("nextPageToken,files(id,name,imageMediaMetadata,createdTime,mimeType)");
-  const baseUrl=`https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${GOOGLE_API_KEY}&orderBy=name`;
-  let allFiles=[]; let pageToken=null;
+async function fetchDriveMedia(folderId) {
+  const q = encodeURIComponent(`'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed=false`);
+  const fields = encodeURIComponent("nextPageToken,files(id,name,imageMediaMetadata,createdTime,mimeType)");
+  const base = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${GOOGLE_API_KEY}&orderBy=name`;
+  let all=[]; let token=null;
   do {
-    const url=pageToken?`${baseUrl}&pageToken=${pageToken}`:baseUrl;
-    const res=await fetch(url);
+    const url = token ? `${base}&pageToken=${token}` : base;
+    const res = await fetch(url);
     if(!res.ok) throw new Error("APIエラー: "+res.status);
-    const data=await res.json();
-    allFiles=[...allFiles,...(data.files||[])];
-    pageToken=data.nextPageToken||null;
-  } while(pageToken);
-  return allFiles.map(f=>({
+    const data = await res.json();
+    all = [...all, ...(data.files||[])];
+    token = data.nextPageToken||null;
+  } while(token);
+  return all.map(f=>({
     id:f.id, filename:f.name,
     mimeType:f.mimeType||"",
     isVideo:(f.mimeType||"").startsWith("video/"),
     takenAt:f.imageMediaMetadata?.time
-      ?new Date(f.imageMediaMetadata.time.replace(/(\d{4}):(\d{2}):(\d{2})/,"$1-$2-$3")).toISOString()
-      :f.createdTime,
+      ? new Date(f.imageMediaMetadata.time.replace(/(\d{4}):(\d{2}):(\d{2})/,"$1-$2-$3")).toISOString()
+      : f.createdTime,
   }));
 }
 
-// マーク設定
 const MARKS = [
-  { key:"heart", emoji:"❤️", label:"お気に入り", color:"rgba(220,53,69,0.9)" },
-  { key:"star",  emoji:"⭐", label:"星",         color:"rgba(245,171,0,0.9)" },
-  { key:"crown", emoji:"👑", label:"王冠",       color:"rgba(138,92,246,0.9)" },
+  { key:"heart", emoji:"❤️", color:"rgba(220,53,69,0.9)" },
+  { key:"star",  emoji:"⭐", color:"rgba(245,171,0,0.9)" },
+  { key:"crown", emoji:"👑", color:"rgba(138,92,246,0.9)" },
 ];
 
-const Spinner = () => <div style={{width:"36px",height:"36px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>;
-const CheckIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg>;
-
-// マーク管理フック
 function useMarks(albumId) {
   const [marks, setMarks] = useState({});
-
   useEffect(()=>{
-    gasGet(`getMarks&albumId=${albumId}`).then(data=>{
-      if(data && typeof data==="object" && !Array.isArray(data)) setMarks(data);
-    }).catch(()=>{});
+    gasGet(`getMarks&albumId=${albumId}`).then(d=>{ if(d&&typeof d==="object"&&!Array.isArray(d)) setMarks(d); }).catch(()=>{});
   },[albumId]);
-
-  const toggleMark = useCallback(async (photoId, markKey)=>{
-    // 楽観的更新（即座に見た目を変える）
+  const toggleMark = useCallback(async(photoId,markKey)=>{
     setMarks(prev=>{
       const cur=prev[photoId]||{};
       const next={...prev,[photoId]:{...cur,[markKey]:!cur[markKey]}};
@@ -115,18 +102,17 @@ function useMarks(albumId) {
       if(Object.keys(next[photoId]).length===0) delete next[photoId];
       return next;
     });
-    // スプレッドシートに保存
     try{ await gasPost({action:"toggleMark",albumId,photoId,markKey}); }catch(e){}
   },[albumId]);
-
-  const hasMark=(photoId,markKey)=>!!(marks[photoId]?.[markKey]);
-  const hasAnyMark=(photoId)=>!!(marks[photoId]&&Object.keys(marks[photoId]).length>0);
-  const countMark=(markKey)=>Object.values(marks).filter(m=>m[markKey]).length;
+  const hasMark=(pid,mk)=>!!(marks[pid]?.[mk]);
+  const hasAnyMark=(pid)=>!!(marks[pid]&&Object.keys(marks[pid]).length>0);
+  const countMark=(mk)=>Object.values(marks).filter(m=>m[mk]).length;
   return {marks,toggleMark,hasMark,hasAnyMark,countMark};
 }
-// ════════════════════════════════════════════════
-// 管理者ログイン
-// ════════════════════════════════════════════════
+
+const Spinner = () => <div style={{width:"36px",height:"36px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>;
+const CheckIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg>;
+
 function AdminLogin({onLogin}) {
   const [pw,setPw]=useState(""); const [err,setErr]=useState(false); const [shake,setShake]=useState(false);
   const submit=()=>{ if(pw===ADMIN_PASSWORD){onLogin();return;} setErr(true);setShake(true);setTimeout(()=>setShake(false),500); };
@@ -147,67 +133,66 @@ function AdminLogin({onLogin}) {
   );
 }
 
-// ════════════════════════════════════════════════
-// 管理者パネル
-// ════════════════════════════════════════════════
 function AdminPanel({onLogout}) {
-  const [albums,setAlbums]=useState([]); const [logs,setLogs]=useState([]);
-  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false);
+  const [albums,setAlbums]=useState([]);
+  const [logs,setLogs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
   const [tab,setTab]=useState("active");
   const [form,setForm]=useState({title:"",folderUrl:"",password:"",expiry:"",clientName:"",lineUrl:""});
-  const [editing,setEditing]=useState(null); const [editExpiry,setEditExpiry]=useState("");
-  const [editingInfo,setEditingInfo]=useState(null); // タイトル・顧客名・PW編集
+  const [editing,setEditing]=useState(null);
+  const [editExpiry,setEditExpiry]=useState("");
+  const [editingInfo,setEditingInfo]=useState(null);
   const [editForm,setEditForm]=useState({title:"",clientName:"",password:""});
-  const [copied,setCopied]=useState(null); const [msg,setMsg]=useState("");
-
+  const [copied,setCopied]=useState(null);
+  const [msg,setMsg]=useState("");
   const showMsg=(t)=>{setMsg(t);setTimeout(()=>setMsg(""),2500);};
+
   const loadData=async()=>{
     setLoading(true);
     try{
       const [a,l]=await Promise.all([gasGet("getAlbums"),gasGet("getLogs")]);
-      setAlbums(Array.isArray(a)?a:[]); setLogs(Array.isArray(l)?l:[]);
-    }catch(e){showMsg("読み込みエラー: "+e.message);}
+      setAlbums(Array.isArray(a)?a:[]);
+      setLogs(Array.isArray(l)?l:[]);
+    }catch(e){showMsg("読み込みエラー");}
     setLoading(false);
   };
   useEffect(()=>{loadData();},[]);
 
   const createAlbum=async()=>{
-    if(!form.title||!form.folderUrl||!form.password||!form.expiry){showMsg("⚠️ 必須項目を入力してください");return;}
+    if(!form.title||!form.folderUrl||!form.password||!form.expiry){showMsg("必須項目を入力してください");return;}
     const folderId=extractFolderId(form.folderUrl);
-    if(!folderId){showMsg("⚠️ フォルダURLが正しくありません");return;}
     setSaving(true);
-    const album={id:genId(),title:form.title,clientName:form.clientName,folderId,password:form.password,expiry:form.expiry,lineUrl:form.lineUrl,createdAt:jstNow()};
+    const album={id:genId(),title:form.title,clientName:form.clientName,folderId,password:form.password,expiry:form.expiry,lineUrl:form.lineUrl||"",createdAt:jstNow()};
     try{
       await gasPost({action:"saveAlbum",album});
       setAlbums(prev=>[...prev,album]);
       setForm({title:"",folderUrl:"",password:"",expiry:"",clientName:"",lineUrl:""});
-      setTab("active"); showMsg("✅ アルバムを作成しました！");
-    }catch(e){showMsg("エラー: "+e.message);}
+      setTab("active"); showMsg("アルバムを作成しました");
+    }catch(e){showMsg("エラー");}
     setSaving(false);
   };
 
   const updateExpiry=async(id)=>{
-    try{ await gasPost({action:"updateExpiry",id,expiry:editExpiry}); setAlbums(prev=>prev.map(a=>a.id===id?{...a,expiry:editExpiry}:a)); setEditing(null); showMsg("✅ 期限を更新しました"); }catch(e){showMsg("エラー: "+e.message);}
+    try{ await gasPost({action:"updateExpiry",id,expiry:editExpiry}); setAlbums(prev=>prev.map(a=>a.id===id?{...a,expiry:editExpiry}:a)); setEditing(null); showMsg("期限を更新しました"); }catch(e){}
   };
+
   const updateAlbumInfo=async(id)=>{
-    try{
-      await gasPost({action:"updateAlbum",id,fields:editForm});
-      setAlbums(prev=>prev.map(a=>a.id===id?{...a,...editForm}:a));
-      setEditingInfo(null); showMsg("✅ 更新しました");
-    }catch(e){showMsg("エラー: "+e.message);}
+    try{ await gasPost({action:"updateAlbum",id,fields:editForm}); setAlbums(prev=>prev.map(a=>a.id===id?{...a,...editForm}:a)); setEditingInfo(null); showMsg("更新しました"); }catch(e){}
   };
 
   const deleteAlbum=async(id)=>{
     if(!confirm("削除しますか？"))return;
-    try{ await gasPost({action:"deleteAlbum",id}); setAlbums(prev=>prev.filter(a=>a.id!==id)); showMsg("🗑 削除しました"); }catch(e){showMsg("エラー: "+e.message);}
+    try{ await gasPost({action:"deleteAlbum",id}); setAlbums(prev=>prev.filter(a=>a.id!==id)); showMsg("削除しました"); }catch(e){}
   };
+
   const copyUrl=(id)=>{ const url=`${location.origin}${location.pathname}?a=${id}`; navigator.clipboard.writeText(url).then(()=>{setCopied(id);setTimeout(()=>setCopied(null),2000);}); };
 
   const activeAlbums=albums.filter(a=>!isExpired(a.expiry));
   const expiredAlbums=albums.filter(a=>isExpired(a.expiry));
   const display=tab==="active"?activeAlbums:tab==="expired"?expiredAlbums:[];
-  const is={width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"};
-  const ls={color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"};
+  const IS={width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"};
+  const LS={color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"};
 
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e)",color:"#fff",paddingBottom:"60px"}}>
@@ -229,31 +214,25 @@ function AdminPanel({onLogout}) {
         </div>
 
         {tab==="new"&&(
-          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",padding:"24px",animation:"fadeUp 0.3s ease"}}>
+          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",padding:"24px"}}>
             <h2 style={{fontSize:"15px",fontWeight:"600",marginBottom:"20px"}}>新しいアルバムを作成</h2>
             <div style={{display:"grid",gap:"14px"}}>
-              <div><label style={ls}>アルバムタイトル *</label><input style={is} placeholder="例: 山田様 2025年3月撮影" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></div>
-              <div><label style={ls}>お客さんの名前（ギャラリー内に表示）</label><input style={is} placeholder="例: 山田様" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/></div>
-              <div><label style={ls}>GoogleドライブのフォルダURL *</label><input style={is} placeholder="https://drive.google.com/drive/folders/..." value={form.folderUrl} onChange={e=>setForm({...form,folderUrl:e.target.value})}/></div>
+              <div><label style={LS}>アルバムタイトル *</label><input style={IS} placeholder="例: 山田様 2025年3月撮影" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></div>
+              <div><label style={LS}>お客さんの名前</label><input style={IS} placeholder="例: 山田様" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/></div>
+              <div><label style={LS}>GoogleドライブのフォルダURL *</label><input style={IS} placeholder="https://drive.google.com/drive/folders/..." value={form.folderUrl} onChange={e=>setForm({...form,folderUrl:e.target.value})}/></div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
-                <div><label style={ls}>お客さんへのパスワード *</label><input style={is} placeholder="例: flower2025" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></div>
-                <div><label style={ls}>公開期限 *</label><input type="date" style={is} value={form.expiry} onChange={e=>setForm({...form,expiry:e.target.value})}/></div>
+                <div><label style={LS}>パスワード *</label><input style={IS} placeholder="例: flower2025" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></div>
+                <div><label style={LS}>公開期限 *</label><input type="date" style={IS} value={form.expiry} onChange={e=>setForm({...form,expiry:e.target.value})}/></div>
               </div>
-              <div>
-                <label style={ls}>お客さんのLINE URL（任意・空欄でチャット機能に切り替え）</label>
-                <input style={is} placeholder="https://line.me/ti/p/..." value={form.lineUrl} onChange={e=>setForm({...form,lineUrl:e.target.value})}/>
-                <p style={{color:"rgba(255,255,255,0.3)",fontSize:"11px",marginTop:"4px"}}>入力あり → LINEボタン表示 / 空欄 → ギャラリー内チャット機能</p>
-              </div>
-              <button className="btn" onClick={createAlbum} disabled={saving} style={{padding:"12px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600",opacity:saving?0.7:1}}>
-                {saving?"作成中...":"🚀 アルバムを作成してURLを発行"}
-              </button>
+              <div><label style={LS}>お客さんのLINE URL（任意・空欄でチャット機能）</label><input style={IS} placeholder="https://line.me/ti/p/..." value={form.lineUrl} onChange={e=>setForm({...form,lineUrl:e.target.value})}/></div>
+              <button className="btn" onClick={createAlbum} disabled={saving} style={{padding:"12px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600",opacity:saving?0.7:1}}>{saving?"作成中...":"🚀 アルバムを作成してURLを発行"}</button>
             </div>
           </div>
         )}
 
         {tab==="log"&&(
           loading?<div style={{textAlign:"center",padding:"60px 0"}}><Spinner/></div>:(
-            <div style={{animation:"fadeUp 0.3s ease"}}>
+            <div>
               <p style={{color:"rgba(255,255,255,0.4)",fontSize:"12px",marginBottom:"16px"}}>{logs.length}件（最新順）</p>
               {logs.length===0?<div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,0.3)"}}>まだアクセスログがありません</div>:(
                 <div style={{display:"grid",gap:"8px"}}>
@@ -289,7 +268,7 @@ function AdminPanel({onLogout}) {
                         <div style={{display:"grid",gap:"4px"}}>
                           <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>👤 {album.clientName||"—"}</span>
                           <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>🔑 <span style={{color:"#a5b4fc",fontWeight:"600"}}>{album.password}</span></span>
-                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>📲 {album.lineUrl?"LINEボタン設定済":"チャット機能"}</span>
+                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>📲 {album.lineUrl?"LINE設定済":"チャット機能"}</span>
                           <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
                             📅
                             {editing===album.id?(
@@ -311,7 +290,7 @@ function AdminPanel({onLogout}) {
                       </div>
                       <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
                         <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{copied===album.id?"✓ コピー済":"🔗 URLコピー"}</button>
-                        <button className="btn" onClick={()=>window.open(`${location.origin}${location.pathname}?a=${album.id}`,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>👁 プレビュー</button>
+                        <button className="btn" onClick={()=>window.open(albumUrl,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>👁 プレビュー</button>
                         <button className="btn" onClick={()=>{setEditingInfo(album.id);setEditForm({title:album.title,clientName:album.clientName||"",password:album.password});}} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,193,7,0.15)",color:"#ffc107",fontSize:"12px"}}>✏️</button>
                         <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>🗑</button>
                       </div>
@@ -324,302 +303,80 @@ function AdminPanel({onLogout}) {
         )}
       </div>
 
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════
-// チャット
-// ═══════════════════════════════════════════════
-
-    unction AdminPanel({onLogout}) {
-  const [albums,setAlbums]=useState([]); const [logs,setLogs]=useState([]);
-  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false);
-  const [tab,setTab]=useState("active");
-  const [form,setForm]=useState({title:"",folderUrl:"",password:"",expiry:"",clientName:"",lineUrl:""});
-  const [editing,setEditing]=useState(null); const [editExpiry,setEditExpiry]=useState("");
-  const [editingInfo,setEditingInfo]=useState(null); // タイトル・顧客名・PW編集
-  const [editForm,setEditForm]=useState({title:"",clientName:"",password:""});
-  const [copied,setCopied]=useState(null); const [msg,setMsg]=useState("");
-
-  const showMsg=(t)=>{setMsg(t);setTimeout(()=>setMsg(""),2500);};
-  const loadData=async()=>{
-    setLoading(true);
-    try{
-      const [a,l]=await Promise.all([gasGet("getAlbums"),gasGet("getLogs")]);
-      setAlbums(Array.isArray(a)?a:[]); setLogs(Array.isArray(l)?l:[]);
-    }catch(e){showMsg("読み込みエラー: "+e.message);}
-    setLoading(false);
-  };
-  useEffect(()=>{loadData();},[]);
-
-  const createAlbum=async()=>{
-    if(!form.title||!form.folderUrl||!form.password||!form.expiry){showMsg("⚠️ 必須項目を入力してください");return;}
-    const folderId=extractFolderId(form.folderUrl);
-    if(!folderId){showMsg("⚠️ フォルダURLが正しくありません");return;}
-    setSaving(true);
-    const album={id:genId(),title:form.title,clientName:form.clientName,folderId,password:form.password,expiry:form.expiry,lineUrl:form.lineUrl,createdAt:jstNow()};
-    try{
-      await gasPost({action:"saveAlbum",album});
-      setAlbums(prev=>[...prev,album]);
-      setForm({title:"",folderUrl:"",password:"",expiry:"",clientName:"",lineUrl:""});
-      setTab("active"); showMsg("✅ アルバムを作成しました！");
-    }catch(e){showMsg("エラー: "+e.message);}
-    setSaving(false);
-  };
-
-  const updateExpiry=async(id)=>{
-    try{ await gasPost({action:"updateExpiry",id,expiry:editExpiry}); setAlbums(prev=>prev.map(a=>a.id===id?{...a,expiry:editExpiry}:a)); setEditing(null); showMsg("✅ 期限を更新しました"); }catch(e){showMsg("エラー: "+e.message);}
-  };
-  const updateAlbumInfo=async(id)=>{
-    try{
-      await gasPost({action:"updateAlbum",id,fields:editForm});
-      setAlbums(prev=>prev.map(a=>a.id===id?{...a,...editForm}:a));
-      setEditingInfo(null); showMsg("✅ 更新しました");
-    }catch(e){showMsg("エラー: "+e.message);}
-  };
-
-  const deleteAlbum=async(id)=>{
-    if(!confirm("削除しますか？"))return;
-    try{ await gasPost({action:"deleteAlbum",id}); setAlbums(prev=>prev.filter(a=>a.id!==id)); showMsg("🗑 削除しました"); }catch(e){showMsg("エラー: "+e.message);}
-  };
-  const copyUrl=(id)=>{ const url=`${location.origin}${location.pathname}?a=${id}`; navigator.clipboard.writeText(url).then(()=>{setCopied(id);setTimeout(()=>setCopied(null),2000);}); };
-
-  const activeAlbums=albums.filter(a=>!isExpired(a.expiry));
-  const expiredAlbums=albums.filter(a=>isExpired(a.expiry));
-  const display=tab==="active"?activeAlbums:tab==="expired"?expiredAlbums:[];
-  const is={width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"};
-  const ls={color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"};
-
-  return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e)",color:"#fff",paddingBottom:"60px"}}>
-      {msg&&<div style={{position:"fixed",top:"16px",left:"50%",transform:"translateX(-50%)",background:"rgba(30,30,50,0.95)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",padding:"10px 20px",borderRadius:"20px",fontSize:"13px",zIndex:9999,whiteSpace:"nowrap"}}>{msg}</div>}
-      <header style={{background:"rgba(15,15,26,0.9)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"14px 20px",position:"sticky",top:0,zIndex:100}}>
-        <div style={{maxWidth:"900px",margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.15em"}}>📷 Kaho's Photo</h1>
-          <div style={{display:"flex",gap:"8px"}}>
-            <button className="btn" onClick={loadData} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.6)",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>🔄 更新</button>
-            <button className="btn" onClick={onLogout} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.4)",padding:"6px 14px",borderRadius:"20px",fontSize:"12px"}}>ログアウト</button>
-          </div>
-        </div>
-      </header>
-      <div style={{maxWidth:"900px",margin:"0 auto",padding:"24px 16px"}}>
-        <div style={{display:"flex",gap:"8px",marginBottom:"24px",flexWrap:"wrap"}}>
-          {[["active",`🟢 公開中 (${activeAlbums.length})`],["expired",`🔒 公開終了 (${expiredAlbums.length})`],["log",`📋 ログ (${logs.length})`],["new","➕ 新規作成"]].map(([key,label])=>(
-            <button key={key} className="btn" onClick={()=>setTab(key)} style={{padding:"8px 18px",borderRadius:"20px",border:"none",fontSize:"13px",fontWeight:"600",background:tab===key?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:"#fff"}}>{label}</button>
-          ))}
-        </div>
-
-        {tab==="new"&&(
-          <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",padding:"24px",animation:"fadeUp 0.3s ease"}}>
-            <h2 style={{fontSize:"15px",fontWeight:"600",marginBottom:"20px"}}>新しいアルバムを作成</h2>
-            <div style={{display:"grid",gap:"14px"}}>
-              <div><label style={ls}>アルバムタイトル *</label><input style={is} placeholder="例: 山田様 2025年3月撮影" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></div>
-              <div><label style={ls}>お客さんの名前（ギャラリー内に表示）</label><input style={is} placeholder="例: 山田様" value={form.clientName} onChange={e=>setForm({...form,clientName:e.target.value})}/></div>
-              <div><label style={ls}>GoogleドライブのフォルダURL *</label><input style={is} placeholder="https://drive.google.com/drive/folders/..." value={form.folderUrl} onChange={e=>setForm({...form,folderUrl:e.target.value})}/></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
-                <div><label style={ls}>お客さんへのパスワード *</label><input style={is} placeholder="例: flower2025" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></div>
-                <div><label style={ls}>公開期限 *</label><input type="date" style={is} value={form.expiry} onChange={e=>setForm({...form,expiry:e.target.value})}/></div>
-              </div>
-              <div>
-                <label style={ls}>お客さんのLINE URL（任意・空欄でチャット機能に切り替え）</label>
-                <input style={is} placeholder="https://line.me/ti/p/..." value={form.lineUrl} onChange={e=>setForm({...form,lineUrl:e.target.value})}/>
-                <p style={{color:"rgba(255,255,255,0.3)",fontSize:"11px",marginTop:"4px"}}>入力あり → LINEボタン表示 / 空欄 → ギャラリー内チャット機能</p>
-              </div>
-              <button className="btn" onClick={createAlbum} disabled={saving} style={{padding:"12px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"14px",fontWeight:"600",opacity:saving?0.7:1}}>
-                {saving?"作成中...":"🚀 アルバムを作成してURLを発行"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {tab==="log"&&(
-          loading?<div style={{textAlign:"center",padding:"60px 0"}}><Spinner/></div>:(
-            <div style={{animation:"fadeUp 0.3s ease"}}>
-              <p style={{color:"rgba(255,255,255,0.4)",fontSize:"12px",marginBottom:"16px"}}>{logs.length}件（最新順）</p>
-              {logs.length===0?<div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,0.3)"}}>まだアクセスログがありません</div>:(
-                <div style={{display:"grid",gap:"8px"}}>
-                  {logs.map((log,i)=>(
-                    <div key={i} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"12px",padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
-                      <div><div style={{fontSize:"13px",fontWeight:"600",marginBottom:"4px"}}>{log.albumTitle||"—"}</div><div style={{fontSize:"11px",color:"rgba(255,255,255,0.4)"}}>🌏 {log.region||"不明"}</div></div>
-                      <div style={{fontSize:"12px",color:"rgba(255,255,255,0.4)",textAlign:"right"}}>📅 {log.accessedAt||"—"}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        )}
-
-        {(tab==="active"||tab==="expired")&&(
-          loading?<div style={{textAlign:"center",padding:"60px 0"}}><Spinner/></div>:(
+      {editingInfo&&(
+        <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.15)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
+            <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>✏️ アルバム情報を編集</h2>
             <div style={{display:"grid",gap:"12px"}}>
-              {display.length===0&&<div style={{textAlign:"center",padding:"60px 0",color:"rgba(255,255,255,0.3)"}}>{tab==="active"?"公開中のアルバムはありません":"公開終了のアルバムはありません"}</div>}
-              {display.map(album=>{
-                const left=daysLeft(album.expiry); const expired=left<=0;
-                const albumUrl=`${location.origin}${location.pathname}?a=${album.id}`;
-                const albumLogs=logs.filter(l=>l.albumId===album.id);
-                return (
-                  <div key={album.id} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${expired?"rgba(255,100,100,0.2)":"rgba(255,255,255,0.1)"}`,borderRadius:"14px",padding:"18px 20px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",flexWrap:"wrap"}}>
-                      <div style={{flex:1,minWidth:"200px"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px",flexWrap:"wrap"}}>
-                          <span style={{fontSize:"15px",fontWeight:"600"}}>{album.title}</span>
-                          <span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"10px",background:expired?"rgba(255,100,100,0.2)":"rgba(100,255,150,0.15)",color:expired?"#ff6b6b":"#48c774",fontWeight:"600"}}>{expired?"公開終了":`残り${left}日`}</span>
-                          {albumLogs.length>0&&<span style={{fontSize:"11px",padding:"2px 8px",borderRadius:"10px",background:"rgba(102,126,234,0.2)",color:"#a5b4fc"}}>👁 {albumLogs.length}回</span>}
-                        </div>
-                        <div style={{display:"grid",gap:"4px"}}>
-                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>👤 {album.clientName||"—"}</span>
-                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>🔑 <span style={{color:"#a5b4fc",fontWeight:"600"}}>{album.password}</span></span>
-                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)"}}>📲 {album.lineUrl?"LINEボタン設定済":"チャット機能"}</span>
-                          <span style={{fontSize:"12px",color:"rgba(255,255,255,0.4)",display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
-                            📅
-                            {editing===album.id?(
-                              <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
-                                <input type="date" value={editExpiry} onChange={e=>setEditExpiry(e.target.value)} style={{padding:"2px 8px",borderRadius:"6px",border:"1px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",outline:"none"}}/>
-                                <button className="btn" onClick={()=>updateExpiry(album.id)} style={{background:"#48c774",color:"#fff",padding:"3px 10px",borderRadius:"6px",fontSize:"11px",fontWeight:"600"}}>保存</button>
-                                <button className="btn" onClick={()=>setEditing(null)} style={{background:"rgba(255,255,255,0.1)",color:"#fff",padding:"3px 8px",borderRadius:"6px",fontSize:"11px"}}>✕</button>
-                              </span>
-                            ):(
-                              <span style={{display:"inline-flex",alignItems:"center",gap:"6px"}}>
-                                {fmtExpiry(album.expiry)}
-                                <button className="btn" onClick={()=>{setEditing(album.id);setEditExpiry(album.expiry);}} style={{background:"rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)",padding:"2px 8px",borderRadius:"6px",fontSize:"11px"}}>変更</button>
-                              </span>
-                            )}
-                          </span>
-                          {albumLogs.length>0&&<span style={{fontSize:"11px",color:"rgba(255,255,255,0.3)"}}>最終: {albumLogs[0].accessedAt} ({albumLogs[0].region})</span>}
-                          <span style={{fontSize:"11px",color:"rgba(255,255,255,0.2)",wordBreak:"break-all"}}>🔗 {albumUrl}</span>
-                        </div>
-                      </div>
-                      <div style={{display:"flex",gap:"6px",flexShrink:0,flexWrap:"wrap"}}>
-                        <button className="btn" onClick={()=>copyUrl(album.id)} style={{padding:"7px 14px",borderRadius:"20px",background:copied===album.id?"#48c774":"rgba(255,255,255,0.1)",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{copied===album.id?"✓ コピー済":"🔗 URLコピー"}</button>
-                        <button className="btn" onClick={()=>window.open(`${location.origin}${location.pathname}?a=${album.id}`,"_blank")} style={{padding:"7px 14px",borderRadius:"20px",background:"rgba(102,126,234,0.3)",color:"#a5b4fc",fontSize:"12px",fontWeight:"600"}}>👁 プレビュー</button>
-                        <button className="btn" onClick={()=>{setEditingInfo(album.id);setEditForm({title:album.title,clientName:album.clientName||"",password:album.password});}} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,193,7,0.15)",color:"#ffc107",fontSize:"12px"}}>✏️</button>
-                        <button className="btn" onClick={()=>deleteAlbum(album.id)} style={{padding:"7px 12px",borderRadius:"20px",background:"rgba(255,100,100,0.15)",color:"#ff6b6b",fontSize:"12px"}}>🗑</button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-        )}
-      </div>
-    {editingInfo&&(
-      <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
-          <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
-          <div style={{display:"grid",gap:"12px"}}>
-            <div>
-              <label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>アルバムタイトル</label>
-              <input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>お客さんの名前</label>
-              <input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>パスワード</label>
-              <input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
-              <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
-              <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════
-// チャット
-// ════════════════════════════════════════════════
-function Chat({albumId, albumTitle}) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [name, setName] = useState(()=>localStorage.getItem(`pg_chat_name_${albumId}`)||"");
-  const [nameSet, setNameSet] = useState(!!localStorage.getItem(`pg_chat_name_${albumId}`));
-  const [loading, setLoading] = useState(true);
-  const bottomRef = useRef(null);
-
-  const loadMessages = async () => {
-    try {
-      const data = await gasGet(`getMessages&albumId=${albumId}`);
-      if (Array.isArray(data)) setMessages(data);
-    } catch(e) {}
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (!nameSet) { setLoading(false); return; }
-    loadMessages();
-    const timer = setInterval(loadMessages, 5000);
-    return () => clearInterval(timer);
-  }, [nameSet]);
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
-
-  const saveName = () => {
-    if (!name.trim()) return;
-    localStorage.setItem(`pg_chat_name_${albumId}`, name.trim());
-    setNameSet(true);
-  };
-
-  const sendMsg = async () => {
-    if (!input.trim()) return;
-    const msg = { id:genId(), albumId, name, text:input.trim(), time:jstNow() };
-    setMessages(prev => [...prev, msg]);
-    setInput("");
-    try { await gasPost({action:"sendMessage", message:msg}); } catch(e) {}
-  };
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:"400px"}}>
-      {!nameSet ? (
-        <div style={{padding:"24px",display:"flex",flexDirection:"column",gap:"12px",alignItems:"center",justifyContent:"center",flex:1}}>
-          <p style={{color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>チャットに表示される名前を入力してください</p>
-          <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveName()} placeholder="例: 山田花子"
-            style={{width:"100%",maxWidth:"280px",padding:"10px 14px",borderRadius:"10px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"14px",outline:"none",boxSizing:"border-box"}}/>
-          <button className="btn" onClick={saveName} style={{padding:"10px 24px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>決定</button>
-        </div>
-      ) : (
-        <>
-          <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:"10px"}}>
-            {loading && <div style={{textAlign:"center",padding:"20px 0"}}><Spinner/></div>}
-            {!loading && messages.length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"13px",padding:"40px 0"}}>メッセージはまだありません</div>}
-            {messages.map((msg,i)=>(
-              <div key={msg.id||i} className="chat-msg" style={{display:"flex",flexDirection:"column",gap:"2px"}}>
-                <div style={{display:"flex",alignItems:"baseline",gap:"6px"}}>
-                  <span style={{fontSize:"12px",fontWeight:"600",color:msg.name===name?"#a5b4fc":"#86efac"}}>{msg.name}</span>
-                  <span style={{fontSize:"10px",color:"rgba(255,255,255,0.3)"}}>{msg.time}</span>
-                </div>
-                <div style={{background:msg.name===name?"rgba(102,126,234,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${msg.name===name?"rgba(102,126,234,0.3)":"rgba(255,255,255,0.08)"}`,borderRadius:msg.name===name?"12px 0 12px 12px":"0 12px 12px 12px",padding:"8px 12px",fontSize:"13px",color:"#fff",lineHeight:"1.5",wordBreak:"break-word",maxWidth:"85%",alignSelf:msg.name===name?"flex-end":"flex-start"}}>
-                  {msg.text}
-                </div>
+              <div><label style={LS}>アルバムタイトル</label><input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={IS}/></div>
+              <div><label style={LS}>お客さんの名前</label><input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={IS}/></div>
+              <div><label style={LS}>パスワード</label><input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={IS}/></div>
+              <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
+                <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
+                <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
               </div>
-            ))}
-            <div ref={bottomRef}/>
+            </div>
           </div>
-          <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.08)",display:"flex",gap:"8px",alignItems:"center"}}>
-            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()} placeholder="メッセージを入力..."
-              style={{flex:1,padding:"10px 14px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none"}}/>
-            <button className="btn" onClick={sendMsg} style={{padding:"10px 16px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600",flexShrink:0}}>送信</button>
-          </div>
-          <div style={{padding:"6px 16px 10px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:"10px",color:"rgba(255,255,255,0.2)"}}>名前: {name} &nbsp;|&nbsp; 5秒ごとに自動更新</span>
-            <button className="btn" onClick={()=>{localStorage.removeItem(`pg_chat_name_${albumId}`);setNameSet(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.2)",fontSize:"10px",padding:0}}>名前を変更</button>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
-// ════════════════════════════════════════════════
-// お客さんログイン
-// ════════════════════════════════════════════════
+
+function Chat({albumId}) {
+  const [messages,setMessages]=useState([]);
+  const [input,setInput]=useState("");
+  const [name,setName]=useState(()=>localStorage.getItem(`pg_name_${albumId}`)||"");
+  const [nameSet,setNameSet]=useState(!!localStorage.getItem(`pg_name_${albumId}`));
+  const [loading,setLoading]=useState(true);
+  const bottomRef=useRef(null);
+  const loadMessages=async()=>{ try{ const d=await gasGet(`getMessages&albumId=${albumId}`); if(Array.isArray(d)) setMessages(d); }catch(e){} setLoading(false); };
+  useEffect(()=>{ if(!nameSet){setLoading(false);return;} loadMessages(); const t=setInterval(loadMessages,5000); return()=>clearInterval(t); },[nameSet]);
+  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  const saveName=()=>{ if(!name.trim())return; localStorage.setItem(`pg_name_${albumId}`,name.trim()); setNameSet(true); };
+  const sendMsg=async()=>{
+    if(!input.trim())return;
+    const msg={id:genId(),albumId,name,text:input.trim(),time:jstNow()};
+    setMessages(prev=>[...prev,msg]); setInput("");
+    try{ await gasPost({action:"sendMessage",message:msg}); }catch(e){}
+  };
+  if(!nameSet) return (
+    <div style={{padding:"24px",display:"flex",flexDirection:"column",gap:"12px",alignItems:"center",justifyContent:"center",flex:1}}>
+      <p style={{color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>チャットに表示される名前を入力してください</p>
+      <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveName()} placeholder="例: 山田花子" style={{width:"100%",maxWidth:"280px",padding:"10px 14px",borderRadius:"10px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"14px",outline:"none",boxSizing:"border-box"}}/>
+      <button className="btn" onClick={saveName} style={{padding:"10px 24px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>決定</button>
+    </div>
+  );
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",minHeight:"300px"}}>
+      <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:"10px"}}>
+        {loading&&<div style={{textAlign:"center",padding:"20px"}}><Spinner/></div>}
+        {!loading&&messages.length===0&&<div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"13px",padding:"40px 0"}}>メッセージはまだありません</div>}
+        {messages.map((msg,i)=>(
+          <div key={msg.id||i}>
+            <div style={{display:"flex",alignItems:"baseline",gap:"6px",justifyContent:msg.name===name?"flex-end":"flex-start"}}>
+              <span style={{fontSize:"12px",fontWeight:"600",color:msg.name===name?"#a5b4fc":"#86efac"}}>{msg.name}</span>
+              <span style={{fontSize:"10px",color:"rgba(255,255,255,0.3)"}}>{msg.time}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:msg.name===name?"flex-end":"flex-start"}}>
+              <div style={{background:msg.name===name?"rgba(102,126,234,0.25)":"rgba(255,255,255,0.06)",border:`1px solid ${msg.name===name?"rgba(102,126,234,0.3)":"rgba(255,255,255,0.08)"}`,borderRadius:msg.name===name?"12px 0 12px 12px":"0 12px 12px 12px",padding:"8px 12px",fontSize:"13px",color:"#fff",lineHeight:"1.5",wordBreak:"break-word",maxWidth:"80%"}}>{msg.text}</div>
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef}/>
+      </div>
+      <div style={{padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.08)",display:"flex",gap:"8px",alignItems:"center"}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()} placeholder="メッセージを入力..." style={{flex:1,padding:"10px 14px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none"}}/>
+        <button className="btn" onClick={sendMsg} style={{padding:"10px 16px",borderRadius:"20px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600",flexShrink:0}}>送信</button>
+      </div>
+      <div style={{padding:"4px 16px 8px",display:"flex",justifyContent:"space-between"}}>
+        <span style={{fontSize:"10px",color:"rgba(255,255,255,0.2)"}}>名前: {name} | 5秒ごとに自動更新</span>
+        <button className="btn" onClick={()=>{localStorage.removeItem(`pg_name_${albumId}`);setNameSet(false);}} style={{background:"transparent",border:"none",color:"rgba(255,255,255,0.2)",fontSize:"10px",padding:0}}>名前を変更</button>
+      </div>
+    </div>
+  );
+}
+
 function ClientLogin({album,onLogin}) {
   const [pw,setPw]=useState(""); const [err,setErr]=useState(false); const [shake,setShake]=useState(false);
   const submit=async()=>{
@@ -642,15 +399,14 @@ function ClientLogin({album,onLogin}) {
           <h1 style={{color:"#fff",fontSize:"20px",fontWeight:"300",letterSpacing:"0.2em",margin:0}}>PHOTO GALLERY</h1>
           <p style={{color:"rgba(255,255,255,0.35)",fontSize:"13px",marginTop:"8px"}}>{album.clientName||album.title} 専用ギャラリー</p>
         </div>
-        <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="パスワードを入力"
-          style={{width:"100%",padding:"14px 16px",borderRadius:"12px",border:`1.5px solid ${err?"#ff6b6b":"rgba(255,255,255,0.15)"}`,background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"16px",outline:"none",letterSpacing:"0.08em",boxSizing:"border-box"}}/>
+        <input type="password" value={pw} onChange={e=>{setPw(e.target.value);setErr(false);}} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="パスワードを入力" style={{width:"100%",padding:"14px 16px",borderRadius:"12px",border:`1.5px solid ${err?"#ff6b6b":"rgba(255,255,255,0.15)"}`,background:"rgba(255,255,255,0.07)",color:"#fff",fontSize:"16px",outline:"none",letterSpacing:"0.08em",boxSizing:"border-box"}}/>
         {err&&<p style={{color:"#ff6b6b",fontSize:"12px",marginTop:"8px",textAlign:"center"}}>パスワードが違います</p>}
         <button className="btn" onClick={submit} style={{width:"100%",marginTop:"16px",padding:"14px",borderRadius:"12px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"15px",fontWeight:"600"}}>ギャラリーを見る</button>
         <div style={{marginTop:"20px",padding:"12px 14px",borderRadius:"12px",background:"rgba(255,193,7,0.1)",border:"1px solid rgba(255,193,7,0.3)",display:"flex",gap:"10px",alignItems:"flex-start"}}>
           <span style={{fontSize:"18px",flexShrink:0}}>⚠️</span>
           <div>
             <p style={{color:"#ffc107",fontSize:"12px",fontWeight:"600",marginBottom:"4px"}}>ブラウザで開いてください</p>
-            <p style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",lineHeight:"1.6"}}>LINEアプリ内のブラウザでは、写真のダウンロードが正しく動作しない場合があります。<br/>右上の「...」→「ブラウザで開く」を選択してください。</p>
+            <p style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",lineHeight:"1.6"}}>LINEアプリ内では写真のダウンロードが正しく動作しない場合があります。右上の「...」→「ブラウザで開く」を選択してください。</p>
           </div>
         </div>
       </div>
@@ -658,14 +414,11 @@ function ClientLogin({album,onLogin}) {
   );
 }
 
-// ════════════════════════════════════════════════
-// ギャラリー
-// ════════════════════════════════════════════════
 function Gallery({album}) {
   const {marks,toggleMark,hasMark,hasAnyMark,countMark}=useMarks(album.id);
   const [photos,setPhotos]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(null);
   const [selectedIdx,setSelectedIdx]=useState(null);
-  const [filterMark,setFilterMark]=useState(""); // ""=全部, "heart"/"star"/"crown"
+  const [filterMark,setFilterMark]=useState("");
   const [thumbSize,setThumbSize]=useState(200);
   const [sortKey,setSortKey]=useState("takenAt"); const [sortDir,setSortDir]=useState("desc");
   const [showHelp,setShowHelp]=useState(false); const [showChat,setShowChat]=useState(false);
@@ -673,12 +426,10 @@ function Gallery({album}) {
   const [filterDate,setFilterDate]=useState("");
   const touchStartX=useRef(null);
 
-  useEffect(()=>{ fetchDrivePhotos(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
-
+  useEffect(()=>{ fetchDriveMedia(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
   const toggleCheck=(id)=>setChecked(prev=>{const next=new Set(prev);next.has(id)?next.delete(id):next.add(id);return next;});
   const clearSelect=()=>{setChecked(new Set());setSelectMode(false);};
   const availableDates=useMemo(()=>{const d=new Set(photos.map(p=>fmtDate(p.takenAt)));return[...d].sort().reverse();},[photos]);
-
   const displayPhotos=useMemo(()=>[...photos]
     .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
@@ -686,18 +437,19 @@ function Gallery({album}) {
   ,[photos,filterMark,filterDate,sortKey,sortDir,marks]);
 
   const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
-  const downloadSelected=()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');[...checked].forEach((id,i)=>setTimeout(()=>{const photo=displayPhotos.find(p=>p.id===id);const a=document.createElement("a");a.href=driveDownload(id);a.download=ds+'_'+(photo?.filename||id+'.jpg');a.target="_blank";a.click();},i*600));};
+  const downloadSelected=()=>{
+    const d=new Date(); const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+    [...checked].forEach((id,i)=>setTimeout(()=>{const ph=displayPhotos.find(p=>p.id===id);const a=document.createElement("a");a.href=driveDownload(id);a.download=ds+"_"+(ph?.filename||id+".jpg");a.target="_blank";a.click();},i*600));
+  };
 
   const selected=selectedIdx!==null?displayPhotos[selectedIdx]:null;
   const goPrev=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i>0?i-1:displayPhotos.length-1);},[displayPhotos.length]);
   const goNext=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i<displayPhotos.length-1?i+1:0);},[displayPhotos.length]);
-
   useEffect(()=>{
     if(selectedIdx===null)return;
     const fn=(e)=>{if(e.key==="ArrowLeft")goPrev();else if(e.key==="ArrowRight")goNext();else if(e.key==="Escape")setSelectedIdx(null);};
     window.addEventListener("keydown",fn); return()=>window.removeEventListener("keydown",fn);
   },[selectedIdx,goPrev,goNext]);
-
   const onTouchStart=(e)=>{touchStartX.current=e.touches[0].clientX;};
   const onTouchEnd=(e)=>{if(touchStartX.current===null)return;const diff=touchStartX.current-e.changedTouches[0].clientX;if(Math.abs(diff)>50){diff>0?goNext():goPrev();}touchStartX.current=null;};
 
@@ -707,41 +459,33 @@ function Gallery({album}) {
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0f0f1a,#1a1a2e,#16213e)",color:"#fff",paddingBottom:"80px"}}>
       {expired&&<div style={{background:"rgba(255,100,100,0.15)",borderBottom:"1px solid rgba(255,100,100,0.3)",padding:"10px 16px",textAlign:"center",fontSize:"13px",color:"#ff6b6b"}}>🔒 このギャラリーは公開終了しました</div>}
-
       <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(15,15,26,0.88)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"12px 16px"}}>
         <div style={{maxWidth:"1400px",margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px"}}>
             <div>
               <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.2em"}}>📷 {album.title}</h1>
-              <div style={{display:"flex",flexWrap:"wrap",gap:"10px",marginTop:"4px"}}>
-                <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>
-                  {expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}
-                </span>
-              <div style={{marginTop:"6px",display:"grid",gap:"2px"}}>
-                <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
-                <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要や編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
-              </div>
+              <div style={{marginTop:"4px"}}>
+                <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
+                <div style={{marginTop:"4px",display:"grid",gap:"2px"}}>
+                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
+                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要や編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
+                </div>
               </div>
             </div>
             <div style={{display:"flex",gap:"6px",flexShrink:0}}>
-              {/* LINE or チャットボタン */}
+              <button className="btn" onClick={()=>window.open(OWNER_LINE_URL,"_blank")} style={{background:"#06c755",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600"}}>+LINE</button>
               {hasLine?(
-                <button className="btn" onClick={()=>window.open(album.lineUrl,"_blank")} style={{background:"#06c755",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600"}}>💬 LINE</button>
+                <button className="btn" onClick={()=>window.open(album.lineUrl,"_blank")} style={{background:"#00b900",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600"}}>💬 LINE</button>
               ):(
                 <button className="btn" onClick={()=>setShowChat(v=>!v)} style={{background:showChat?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>💬 チャット</button>
               )}
-              <button className="btn" onClick={()=>window.open(OWNER_LINE_URL,"_blank")} style={{background:"#06c755",border:"none",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",fontWeight:"600",display:"flex",alignItems:"center",gap:"4px"}}>
-                <span style={{fontSize:"16px"}}>+</span>LINE追加
-              </button>
               <button className="btn" onClick={()=>setShowHelp(true)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>❓</button>
             </div>
           </div>
-
           <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
-            {/* マークフィルター */}
             {MARKS.map(m=>(
               <button key={m.key} className="btn" onClick={()=>setFilterMark(f=>f===m.key?"":m.key)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterMark===m.key?m.color:"rgba(255,255,255,0.08)",color:"#fff"}}>
-                {m.emoji} {filterMark===m.key?`(${countMark(m.key)})`:""}
+                {m.emoji}{filterMark===m.key?` (${countMark(m.key)})`:""}
               </button>
             ))}
             <button className="btn" onClick={()=>{setSelectMode(v=>!v);if(selectMode)clearSelect();}} style={{padding:"6px 14px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:selectMode?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:selectMode?"#fff":"rgba(255,255,255,0.6)"}}>
@@ -760,23 +504,20 @@ function Gallery({album}) {
             <select value={sortKey} onChange={e=>setSortKey(e.target.value)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
               <option value="takenAt">撮影日</option><option value="filename">ファイル名</option>
             </select>
-            <button className="btn" onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>
-              {sortDir==="asc"?"↑ 古い順":"↓ 新しい順"}
-            </button>
+            <button className="btn" onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>{sortDir==="asc"?"↑ 古い順":"↓ 新しい順"}</button>
             <span style={{fontSize:"11px",color:"rgba(255,255,255,0.35)",marginLeft:"auto"}}>{displayPhotos.length}枚</span>
           </div>
         </div>
       </header>
 
-      {/* チャットパネル */}
       {!hasLine&&showChat&&(
         <div style={{maxWidth:"1400px",margin:"0 auto",padding:"12px 12px 0"}}>
           <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"16px",overflow:"hidden",maxHeight:"400px",display:"flex",flexDirection:"column"}}>
             <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:"13px",fontWeight:"600"}}>💬 チャット</span>
-              <button className="btn" onClick={()=>setShowChat(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"24px",height:"24px",fontSize:"14px",display:"flex",alignItems:"center",justifyContent:"center"}}>&times;</button>
+              <button className="btn" onClick={()=>setShowChat(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"24px",height:"24px",fontSize:"14px",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
             </div>
-            <Chat albumId={album.id} albumTitle={album.title}/>
+            <Chat albumId={album.id}/>
           </div>
         </div>
       )}
@@ -803,20 +544,16 @@ function Gallery({album}) {
                     <img src={driveThumb(photo.id)} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                   )}
                   <div style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"20px 8px 6px",fontSize:"10px",color:"rgba(255,255,255,0.8)"}}>{fmtDate(photo.takenAt)}</div>
-
-                  {/* 付いてるマークを表示 */}
                   {activeMarks.length>0&&(
                     <div style={{position:"absolute",top:"7px",left:"7px",display:"flex",gap:"2px"}}>
                       {activeMarks.map(m=><span key={m.key} style={{fontSize:"14px",filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.8))"}}>{m.emoji}</span>)}
                     </div>
                   )}
-
-                  {/* マークボタン群 */}
                   {!selectMode&&(
-                    <div className={`mark-btn${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
+                    <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
                       {MARKS.map(m=>(
                         <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
-                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:"28px",height:"28px",fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",transition:"background 0.15s"}}>
+                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:"28px",height:"28px",fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
                           {m.emoji}
                         </button>
                       ))}
@@ -836,12 +573,11 @@ function Gallery({album}) {
         <span style={{fontSize:"11px",color:"rgba(255,255,255,0.4)",width:"32px"}}>{thumbSize}</span>
       </div>
 
-      {/* 拡大モーダル */}
       {selected&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"16px"}}
           onClick={()=>setSelectedIdx(null)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-          <button className="btn" onClick={goPrev} style={{position:"fixed",left:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>‹</button>
-          <button className="btn" onClick={goNext} style={{position:"fixed",right:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>›</button>
+          <button className="btn" onClick={goPrev} style={{position:"fixed",left:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>&#8249;</button>
+          <button className="btn" onClick={goNext} style={{position:"fixed",right:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>&#8250;</button>
           <div onClick={e=>e.stopPropagation()} style={{position:"relative",maxWidth:"min(85vw,700px)",width:"100%"}}>
             {selected.isVideo?(
               <iframe src={driveVideoStream(selected.id)} style={{width:"100%",height:"56vh",borderRadius:"10px",border:"none",display:"block"}} allow="autoplay" allowFullScreen/>
@@ -851,7 +587,6 @@ function Gallery({album}) {
             <div style={{position:"absolute",bottom:"10px",left:"10px",background:"rgba(0,0,0,0.65)",color:"#fff",fontSize:"11px",padding:"4px 10px",borderRadius:"20px",backdropFilter:"blur(4px)"}}>
               📅 {fmt(selected.takenAt)} ({selectedIdx+1}/{displayPhotos.length})
             </div>
-            {/* マークボタン（拡大時） */}
             <div style={{position:"absolute",top:"10px",right:"10px",display:"flex",gap:"4px"}}>
               {MARKS.map(m=>(
                 <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(selected.id,m.key);}}
@@ -863,7 +598,7 @@ function Gallery({album}) {
           </div>
           <div onClick={e=>e.stopPropagation()} style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"14px",justifyContent:"center"}}>
             {[
-              {label:"💾 元画像サイズで保存",fn:()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');const a=document.createElement('a');a.href=driveDownload(selected.id);a.download=ds+'_'+(selected.filename||selected.id+'.jpg');a.target='_blank';a.click();},bg:"#667eea"},
+              {label:"💾 元画像サイズで保存",fn:()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");const a=document.createElement("a");a.href=driveDownload(selected.id);a.download=ds+"_"+(selected.filename||selected.id+".jpg");a.target="_blank";a.click();},bg:"#667eea"},
               {label:"📲 LINEで共有",fn:()=>window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#06c755"},
               ...(hasLine?[{label:"💬 LINEで相談",fn:()=>window.open(album.lineUrl,"_blank"),bg:"#00b900"}]:[]),
               {label:"✉️ メールで共有",fn:()=>window.open(`mailto:?subject=写真をお届けします&body=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#f7a928"},
@@ -880,15 +615,15 @@ function Gallery({album}) {
           <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"440px",width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px"}}>
               <h2 style={{color:"#fff",margin:0,fontSize:"17px"}}>📖 使い方ガイド</h2>
-              <button className="btn" onClick={()=>setShowHelp(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"32px",height:"32px",fontSize:"18px"}}>&times;</button>
+              <button className="btn" onClick={()=>setShowHelp(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",color:"#fff",borderRadius:"50%",width:"32px",height:"32px",fontSize:"18px"}}>✕</button>
             </div>
             {[
-              ["❤️⭐👑","マーク機能","写真右上の3つのボタンでマーク。上部のボタンで絞り込めます。3つ同時につけることも可能！"],
+              ["❤️⭐👑","マーク機能","写真右上の3つのボタンでマーク。上部ボタンで絞り込みできます。3つ同時もOK！"],
               ["◀▶","写真のナビ","拡大表示中に左右矢印で前後へ。スマホはスワイプでもOK！"],
               ["📅","日付フィルター","「📅 全日程」で日付を選ぶとその日だけ表示。"],
-              ["💬","チャット / LINE","カメラマンへの連絡はチャットまたはLINEボタンから。"],
-              ["☑️","複数選択保存","「複数選択」→チェック→「全選択」も可。まとめて保存。"],
-              ["💾","保存","拡大表示中に「元画像サイズで保存」で保存できます。"],
+              ["💬","チャット/LINE","カメラマンへの連絡はチャットまたはLINEから。"],
+              ["☑️","複数選択保存","「複数選択」でチェック。「全選択」も可。まとめて保存。"],
+              ["💾","保存","拡大表示中に「元画像サイズで保存」で保存。"],
               ["🖼","サイズ調整","画面下のスライダーでサムネイルの大きさを変更。"],
               ["📱","ホーム追加","iPhone: Safariで開いて共有→「ホーム画面に追加」\nAndroid: Chromeでメニュー→「ホーム画面に追加」"],
             ].map(([icon,title,desc])=>(
@@ -904,24 +639,16 @@ function Gallery({album}) {
   );
 }
 
-// ════════════════════════════════════════════════
-// ルーター
-// ════════════════════════════════════════════════
 function App() {
   const params=new URLSearchParams(location.search);
   const albumId=params.get("a"); const isAdmin=params.get("admin")==="1";
   const [adminLoggedIn,setAdminLoggedIn]=useState(()=>sessionStorage.getItem("pg_admin")==="1");
   const [clientAuth,setClientAuth]=useState(()=>sessionStorage.getItem(`pg_client_${albumId}`)==="1");
   const [album,setAlbum]=useState(null); const [albumLoading,setAlbumLoading]=useState(!!albumId); const [albumNotFound,setAlbumNotFound]=useState(false);
-
   useEffect(()=>{
     if(!albumId)return;
-    gasGet("getAlbums").then(data=>{
-      const found=(Array.isArray(data)?data:[]).find(a=>a.id===albumId);
-      if(found)setAlbum(found);else setAlbumNotFound(true);
-    }).catch(()=>setAlbumNotFound(true)).finally(()=>setAlbumLoading(false));
+    gasGet("getAlbums").then(data=>{ const found=(Array.isArray(data)?data:[]).find(a=>a.id===albumId); if(found)setAlbum(found);else setAlbumNotFound(true); }).catch(()=>setAlbumNotFound(true)).finally(()=>setAlbumLoading(false));
   },[albumId]);
-
   if(isAdmin){
     if(!adminLoggedIn)return<AdminLogin onLogin={()=>{sessionStorage.setItem("pg_admin","1");setAdminLoggedIn(true);}}/>;
     return<AdminPanel onLogout={()=>{sessionStorage.removeItem("pg_admin");setAdminLoggedIn(false);}}/>;
@@ -943,25 +670,10 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
 </script>
 <script>
   if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}
 </script>
 </body>
 </html>
-{editingInfo&&(
-      <div onClick={()=>setEditingInfo(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#1a1a2e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"20px",padding:"28px 24px",maxWidth:"400px",width:"100%"}}>
-          <h2 style={{color:"#fff",fontSize:"16px",marginBottom:"20px"}}>&#9999; アルバム情報を編集</h2>
-          <div style={{display:"grid",gap:"12px"}}>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>アルバムタイトル</label><input value={editForm.title} onChange={e=>setEditForm({...editForm,title:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>お客さんの名前</label><input value={editForm.clientName} onChange={e=>setEditForm({...editForm,clientName:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div><label style={{color:"rgba(255,255,255,0.5)",fontSize:"11px",marginBottom:"4px",display:"block"}}>パスワード</label><input value={editForm.password} onChange={e=>setEditForm({...editForm,password:e.target.value})} style={{width:"100%",padding:"10px 12px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/></div>
-            <div style={{display:"flex",gap:"8px",marginTop:"4px"}}>
-              <button className="btn" onClick={()=>updateAlbumInfo(editingInfo)} style={{flex:1,padding:"11px",borderRadius:"10px",background:"linear-gradient(135deg,#667eea,#764ba2)",color:"#fff",fontSize:"13px",fontWeight:"600"}}>保存</button>
-              <button className="btn" onClick={()=>setEditingInfo(null)} style={{padding:"11px 20px",borderRadius:"10px",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.6)",fontSize:"13px"}}>キャンセル</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
