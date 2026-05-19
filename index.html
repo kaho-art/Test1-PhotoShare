@@ -452,6 +452,7 @@ function Gallery({album}) {
   const [showHelp,setShowHelp]=useState(false); const [showChat,setShowChat]=useState(false);
   const [checked,setChecked]=useState(new Set()); const [selectMode,setSelectMode]=useState(false);
   const [filterDate,setFilterDate]=useState("");
+  const [filterType,setFilterType]=useState("all"); // all / photo / video
   const touchStartX=useRef(null);
 
   useEffect(()=>{ fetchDriveMedia(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
@@ -460,10 +461,11 @@ function Gallery({album}) {
   const availableDates=useMemo(()=>{const d=new Set(photos.map(p=>fmtDate(p.takenAt)));return[...d].sort().reverse();},[photos]);
   const displayPhotos=useMemo(()=>[...photos]
     .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
+    .filter(p=>filterType==="all"||(filterType==="photo"&&!p.isVideo)||(filterType==="video"&&p.isVideo))
     .filter(p=>!filterComment||hasComment(p.id))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
     .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
-  ,[photos,filterMark,filterComment,filterDate,sortKey,sortDir,marks,comments]);
+  ,[photos,filterMark,filterComment,filterDate,filterType,sortKey,sortDir,marks,comments]);
 
   const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
   const downloadSelected=()=>{
@@ -520,6 +522,11 @@ function Gallery({album}) {
             <button className="btn" onClick={()=>setFilterComment(v=>!v)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterComment?"rgba(96,165,250,0.8)":"rgba(255,255,255,0.08)",color:"#fff"}}>
               📝{filterComment?` (${countCommented()})`:""}
             </button>
+            <select value={filterType} onChange={e=>setFilterType(e.target.value)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
+              <option value="all">📷🎬 全て</option>
+              <option value="photo">📷 写真のみ</option>
+              <option value="video">🎬 動画のみ</option>
+            </select>
             <button className="btn" onClick={()=>{setSelectMode(v=>!v);if(selectMode)clearSelect();}} style={{padding:"6px 14px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:selectMode?"linear-gradient(135deg,#667eea,#764ba2)":"rgba(255,255,255,0.08)",color:selectMode?"#fff":"rgba(255,255,255,0.6)"}}>
               ☑️ {selectMode?"選択中":"複数選択"}
             </button>
