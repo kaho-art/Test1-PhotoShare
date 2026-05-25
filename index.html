@@ -87,6 +87,7 @@ const MARKS = [
   { key:"heart", emoji:"❤️", color:"rgba(220,53,69,0.9)" },
   { key:"star",  emoji:"⭐", color:"rgba(245,171,0,0.9)" },
   { key:"crown", emoji:"👑", color:"rgba(138,92,246,0.9)" },
+  { key:"raw",   emoji:"RAW", color:"rgba(14,165,233,0.9)", label:"RAW希望" },
 ];
 
 function useMarks(albumId) {
@@ -473,6 +474,14 @@ function Gallery({album}) {
     [...checked].forEach((id,i)=>setTimeout(()=>{const ph=displayPhotos.find(p=>p.id===id);const a=document.createElement("a");a.href=driveDownload(id);a.download=ds+"_"+(ph?.filename||id+".jpg");a.target="_blank";a.click();},i*600));
   };
 
+  const downloadByMark=(markKey)=>{
+    const targets=displayPhotos.filter(p=>hasMark(p.id,markKey));
+    if(targets.length===0){alert("マークした写真がありません");return;}
+    if(!confirm(`${targets.length}枚をダウンロードしますか？`))return;
+    const d=new Date(); const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+    targets.forEach((ph,i)=>setTimeout(()=>{const a=document.createElement("a");a.href=driveDownload(ph.id);a.download=ds+"_"+(ph.filename||ph.id+".jpg");a.target="_blank";a.click();},i*600));
+  };
+
   const selected=selectedIdx!==null?displayPhotos[selectedIdx]:null;
   const goPrev=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i>0?i-1:displayPhotos.length-1);},[displayPhotos.length]);
   const goNext=useCallback((e)=>{e&&e.stopPropagation();setSelectedIdx(i=>i<displayPhotos.length-1?i+1:0);},[displayPhotos.length]);
@@ -515,9 +524,18 @@ function Gallery({album}) {
           </div>
           <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
             {MARKS.map(m=>(
-              <button key={m.key} className="btn" onClick={()=>setFilterMark(f=>f===m.key?"":m.key)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterMark===m.key?m.color:"rgba(255,255,255,0.08)",color:"#fff"}}>
-                {m.emoji}{filterMark===m.key?` (${countMark(m.key)})`:""}
-              </button>
+              <div key={m.key} style={{display:"flex",alignItems:"center",gap:"2px"}}>
+                <button className="btn" onClick={()=>setFilterMark(f=>f===m.key?"":m.key)}
+                  style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterMark===m.key?m.color:"rgba(255,255,255,0.08)",color:"#fff"}}>
+                  {m.emoji}{filterMark===m.key?` (${countMark(m.key)})`:""}
+                </button>
+                {countMark(m.key)>0&&(
+                  <button className="btn" onClick={()=>downloadByMark(m.key)} title={`${m.emoji}の写真を一括DL`}
+                    style={{padding:"4px 8px",borderRadius:"14px",border:"none",fontSize:"11px",background:"rgba(72,199,116,0.2)",color:"#48c774",fontWeight:"600"}}>
+                    ⬇️
+                  </button>
+                )}
+              </div>
             ))}
             <button className="btn" onClick={()=>setFilterComment(v=>!v)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterComment?"rgba(96,165,250,0.8)":"rgba(255,255,255,0.08)",color:"#fff"}}>
               📝{filterComment?` (${countCommented()})`:""}
@@ -597,7 +615,7 @@ function Gallery({album}) {
                     <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
                       {MARKS.map(m=>(
                         <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
-                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:"50%",width:"28px",height:"28px",fontSize:"13px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"28px",height:"22px",padding:m.key==="raw"?"0 5px":"0",fontSize:m.key==="raw"?"9px":"13px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",color:"#fff",letterSpacing:m.key==="raw"?"-0.5px":"normal"}}>
                           {m.emoji}
                         </button>
                       ))}
@@ -634,7 +652,7 @@ function Gallery({album}) {
             <div style={{position:"absolute",top:"10px",right:"10px",display:"flex",gap:"4px"}}>
               {MARKS.map(m=>(
                 <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(selected.id,m.key);}}
-                  style={{background:hasMark(selected.id,m.key)?m.color:"rgba(0,0,0,0.6)",border:"none",borderRadius:"50%",width:"36px",height:"36px",fontSize:"16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)"}}>
+                  style={{background:hasMark(selected.id,m.key)?m.color:"rgba(0,0,0,0.6)",border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"36px",height:"36px",padding:m.key==="raw"?"0 8px":"0",fontSize:m.key==="raw"?"11px":"16px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",color:"#fff"}}>
                   {m.emoji}
                 </button>
               ))}
