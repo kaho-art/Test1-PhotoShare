@@ -509,7 +509,8 @@ function Gallery({album}) {
   const [showHelp,setShowHelp]=useState(false); const [showChat,setShowChat]=useState(false);
   const [checked,setChecked]=useState(new Set()); const [selectMode,setSelectMode]=useState(false);
   const [filterDate,setFilterDate]=useState("");
-  const [filterType,setFilterType]=useState("all"); // all / photo / video
+  const [filterType,setFilterType]=useState("all");
+  const [showNotice,setShowNotice]=useState(false); // all / photo / video
   const touchStartX=useRef(null);
 
   useEffect(()=>{ fetchDriveMedia(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
@@ -561,14 +562,21 @@ function Gallery({album}) {
             <div>
               <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.2em"}}>📷 {album.title}</h1>
               <div style={{marginTop:"4px"}}>
-                <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
-                <div style={{marginTop:"4px",display:"grid",gap:"2px"}}>
-                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
-                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要な場合は、RAWのマークを付けたうえで、LINEにご連絡ください。</p>
-                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
-                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 各種マークとメモ、チャットは閲覧者全員に共有されます。写真選別に使ってください。</p>
-                  <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ ⬇️マークでマークをつけた写真のみダウンロードしていただけます。</p>
+                <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
+                  <button className="btn" onClick={()=>setShowNotice(v=>!v)} style={{fontSize:"10px",color:"rgba(255,193,7,0.7)",background:"rgba(255,193,7,0.1)",border:"1px solid rgba(255,193,7,0.3)",borderRadius:"10px",padding:"1px 8px"}}>
+                    {showNotice?"▲ 閉じる":"⚠️ 注意事項"}
+                  </button>
                 </div>
+                {showNotice&&(
+                  <div style={{marginTop:"6px",display:"grid",gap:"2px",background:"rgba(255,193,7,0.05)",borderRadius:"8px",padding:"8px 10px",border:"1px solid rgba(255,193,7,0.15)"}}>
+                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
+                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要な場合は、RAWのマークを付けたうえで、LINEにご連絡ください。</p>
+                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
+                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 各種マークとメモ、チャットは閲覧者全員に共有されます。写真選別に使ってください。</p>
+                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ ⬇️マークでマークをつけた写真のみダウンロードしていただけます。</p>
+                  </div>
+                )}
               </div>
             </div>
             <div style={{display:"flex",gap:"6px",flexShrink:0}}>
