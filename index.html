@@ -561,22 +561,11 @@ function Gallery({album}) {
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px"}}>
             <div style={{flex:1,minWidth:0}}>
               <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.1em",wordBreak:"break-word"}}>📷 {album.title}</h1>
-              <div style={{marginTop:"4px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
-                  <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
-                  <button className="btn" onClick={()=>setShowNotice(v=>!v)} style={{fontSize:"10px",color:"rgba(255,193,7,0.7)",background:"rgba(255,193,7,0.1)",border:"1px solid rgba(255,193,7,0.3)",borderRadius:"10px",padding:"1px 8px"}}>
-                    {showNotice?"▲ 閉じる":"⚠️ 注意事項"}
-                  </button>
-                </div>
-                {showNotice&&(
-                  <div style={{marginTop:"6px",display:"grid",gap:"2px",background:"rgba(255,193,7,0.05)",borderRadius:"8px",padding:"8px 10px",border:"1px solid rgba(255,193,7,0.15)",width:"100%",boxSizing:"border-box"}}>
-                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
-                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要な場合は、RAWのマークを付けたうえで、LINEにご連絡ください。</p>
-                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
-                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 各種マークとメモ、チャットは閲覧者全員に共有されます。写真選別に使ってください。</p>
-                    <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ ⬇️マークでマークをつけた写真のみダウンロードしていただけます。</p>
-                  </div>
-                )}
+              <div style={{marginTop:"4px",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+                <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
+                <button className="btn" onClick={()=>setShowNotice(v=>!v)} style={{fontSize:"10px",color:"rgba(255,193,7,0.7)",background:"rgba(255,193,7,0.1)",border:"1px solid rgba(255,193,7,0.3)",borderRadius:"10px",padding:"1px 8px"}}>
+                  {showNotice?"▲ 閉じる":"⚠️ 注意事項"}
+                </button>
               </div>
             </div>
             <div style={{display:"flex",gap:"6px",flexShrink:0}}>
@@ -589,6 +578,15 @@ function Gallery({album}) {
               <button className="btn" onClick={()=>setShowHelp(true)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px"}}>❓</button>
             </div>
           </div>
+          {showNotice&&(
+            <div style={{marginTop:"8px",display:"grid",gap:"2px",background:"rgba(255,193,7,0.05)",borderRadius:"8px",padding:"8px 10px",border:"1px solid rgba(255,193,7,0.15)"}}>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要な場合は、RAWのマークを付けたうえで、LINEにご連絡ください。</p>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 各種マークとメモ、チャットは閲覧者全員に共有されます。写真選別に使ってください。</p>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ ⬇️マークでマークをつけた写真のみダウンロードしていただけます。</p>
+            </div>
+          )}
           <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
             {MARKS.map(m=>(
               <div key={m.key} style={{display:"flex",alignItems:"center",gap:"2px"}}>
