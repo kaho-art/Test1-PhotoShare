@@ -559,8 +559,8 @@ function Gallery({album}) {
       <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(15,15,26,0.88)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"12px 16px"}}>
         <div style={{maxWidth:"1400px",margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"8px"}}>
-            <div>
-              <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.2em"}}>📷 {album.title}</h1>
+            <div style={{flex:1,minWidth:0}}>
+              <h1 style={{fontSize:"16px",fontWeight:"300",letterSpacing:"0.1em",wordBreak:"break-word"}}>📷 {album.title}</h1>
               <div style={{marginTop:"4px"}}>
                 <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
                   <span style={{fontSize:"11px",color:left<=7?"#ff6b6b":left<=14?"#f7a928":"rgba(255,255,255,0.4)"}}>{expired?"🔒 公開終了":`⏰ 残り${left}日 (${fmtExpiry(album.expiry)})`}</span>
@@ -569,7 +569,7 @@ function Gallery({album}) {
                   </button>
                 </div>
                 {showNotice&&(
-                  <div style={{marginTop:"6px",display:"grid",gap:"2px",background:"rgba(255,193,7,0.05)",borderRadius:"8px",padding:"8px 10px",border:"1px solid rgba(255,193,7,0.15)"}}>
+                  <div style={{marginTop:"6px",display:"grid",gap:"2px",background:"rgba(255,193,7,0.05)",borderRadius:"8px",padding:"8px 10px",border:"1px solid rgba(255,193,7,0.15)",width:"100%",boxSizing:"border-box"}}>
                     <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ このアルバムには削除日が設定されています。あらかじめデータを保存しておくようにお願いします。</p>
                     <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ RAWデータが必要な場合は、RAWのマークを付けたうえで、LINEにご連絡ください。</p>
                     <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
