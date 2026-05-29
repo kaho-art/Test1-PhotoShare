@@ -725,7 +725,7 @@ function Gallery({album}) {
           </div>
           <div onClick={e=>e.stopPropagation()} style={{display:"flex",flexWrap:"wrap",gap:"8px",marginTop:"14px",justifyContent:"center"}}>
             {[
-              {label:"💾 元画像サイズで保存",fn:()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");const a=document.createElement("a");a.href=driveDownload(selected.id);a.download=ds+"_"+(selected.filename||selected.id+".jpg");a.target="_blank";a.click();},bg:"#667eea"},
+              {label:"💾 画像を保存",fn:()=>{const d=new Date();const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");const a=document.createElement("a");a.href=driveDownload(selected.id);a.download=ds+"_"+(selected.filename||selected.id+".jpg");a.target="_blank";a.click();},bg:"#667eea"},
               {label:"📲 LINEで共有",fn:()=>window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#06c755"},
               ...(hasLine?[{label:"💬 LINEで相談",fn:()=>window.open(album.lineUrl,"_blank"),bg:"#00b900"}]:[]),
               {label:"✉️ メールで共有",fn:()=>window.open(`mailto:?subject=写真をお届けします&body=${encodeURIComponent(driveView(selected.id))}`,"_blank"),bg:"#f7a928"},
@@ -782,7 +782,7 @@ function Gallery({album}) {
               ["📅","日付フィルター","「📅 全日程」で日付を選ぶとその日だけ表示。"],
               ["💬","チャット/LINE","カメラマンへの連絡はチャットまたはLINEから。"],
               ["☑️","複数選択保存","「複数選択」でチェック。「全選択」も可。まとめて保存。"],
-              ["💾","保存","拡大表示中に「元画像サイズで保存」で保存。"],
+              ["💾","保存","拡大表示中に「画像を保存」で保存。"],
               ["🖼","サイズ調整","画面下のスライダーでサムネイルの大きさを変更。"],
               ["📱","ホーム追加","iPhone: Safariで開いて共有→「ホーム画面に追加」\nAndroid: Chromeでメニュー→「ホーム画面に追加」"],
             ].map(([icon,title,desc])=>(
