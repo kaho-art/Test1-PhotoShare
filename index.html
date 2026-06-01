@@ -855,7 +855,7 @@ function Gallery({album}) {
       </div>
 
       {selected&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"60px 16px 16px"}}
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",zIndex:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",padding:"calc(env(safe-area-inset-top) + 16px) 16px 16px",overflowY:"auto"}}
           onClick={()=>setSelectedIdx(null)} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <button className="btn" onClick={goPrev} style={{position:"fixed",left:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>&#8249;</button>
           <button className="btn" onClick={goNext} style={{position:"fixed",right:"12px",top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.6)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",borderRadius:"50%",width:"44px",height:"44px",fontSize:"22px",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>&#8250;</button>
