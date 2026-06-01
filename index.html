@@ -549,7 +549,12 @@ function Gallery({album}) {
   const [showNotice,setShowNotice]=useState(false);
   const [filterTag,setFilterTag]=useState("");
   const [tagInput,setTagInput]=useState("");
-  const [tagTarget,setTagTarget]=useState(null); // all / photo / video
+  const [tagTarget,setTagTarget]=useState(null);
+  const [bulkMarkTarget,setBulkMarkTarget]=useState(null); // 複数選択時のマーク/タグパネル
+  const [bulkTagInput,setBulkTagInput]=useState("");
+  const lastClickedIdx=useRef(null);
+  const isDragging=useRef(false);
+  const dragStartIdx=useRef(null); // all / photo / video
   const touchStartX=useRef(null);
 
   useEffect(()=>{ fetchDriveMedia(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
@@ -566,6 +571,63 @@ function Gallery({album}) {
   ,[photos,filterMark,filterComment,filterDate,filterType,filterTag,sortKey,sortDir,marks,comments,photoTags]);
 
   const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
+
+  // Shift+クリックで範囲選択
+  const handlePhotoClick=(e, idx, photoId)=>{
+    if(!selectMode){
+      setSelectedIdx(idx);
+      return;
+    }
+    if(e.shiftKey && lastClickedIdx.current!==null){
+      const start=Math.min(lastClickedIdx.current, idx);
+      const end=Math.max(lastClickedIdx.current, idx);
+      const rangeIds=displayPhotos.slice(start,end+1).map(p=>p.id);
+      setChecked(prev=>{
+        const next=new Set(prev);
+        rangeIds.forEach(id=>next.add(id));
+        return next;
+      });
+    } else {
+      toggleCheck(photoId);
+      lastClickedIdx.current=idx;
+    }
+  };
+
+  // ドラッグ選択（スマホ・PC共通）
+  const handleTouchStart=(e, idx)=>{
+    if(!selectMode) return;
+    isDragging.current=false;
+    dragStartIdx.current=idx;
+  };
+  const handleTouchMove=(e)=>{
+    if(!selectMode||dragStartIdx.current===null) return;
+    isDragging.current=true;
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX, touch.clientY);
+    const card=el?.closest('[data-photo-idx]');
+    if(card){
+      const idx=parseInt(card.dataset.photoIdx);
+      const start=Math.min(dragStartIdx.current, idx);
+      const end=Math.max(dragStartIdx.current, idx);
+      const rangeIds=displayPhotos.slice(start,end+1).map(p=>p.id);
+      setChecked(new Set(rangeIds));
+    }
+  };
+  const handleTouchEnd=()=>{ dragStartIdx.current=null; isDragging.current=false; };
+
+  // 複数選択時の一括マーク
+  const bulkToggleMark=async(markKey)=>{
+    const ids=[...checked];
+    ids.forEach(id=>toggleMark(id,markKey));
+  };
+
+  // 複数選択時の一括タグ
+  const bulkAddTag=async(text)=>{
+    if(!text.trim()) return;
+    const ids=[...checked];
+    for(const id of ids){ await addTag(id, text.trim()); }
+    setBulkTagInput("");
+  };
   const downloadSelected=()=>{
     const d=new Date(); const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
     [...checked].forEach((id,i)=>setTimeout(()=>{const ph=displayPhotos.find(p=>p.id===id);const a=document.createElement("a");a.href=driveDownload(id);a.download=ds+"_"+(ph?.filename||id+".jpg");a.target="_blank";a.click();},i*600));
@@ -669,9 +731,35 @@ function Gallery({album}) {
             </button>
             {selectMode&&<>
               <button className="btn" onClick={selectAll} style={{padding:"6px 12px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"#fff",fontSize:"12px"}}>全選択</button>
-              {checked.size>0&&<button className="btn" onClick={downloadSelected} style={{padding:"6px 14px",borderRadius:"20px",border:"none",background:"#48c774",color:"#fff",fontSize:"12px",fontWeight:"600"}}>💾 {checked.size}枚保存</button>}
+              {checked.size>0&&<>
+                <button className="btn" onClick={downloadSelected} style={{padding:"6px 14px",borderRadius:"20px",border:"none",background:"#48c774",color:"#fff",fontSize:"12px",fontWeight:"600"}}>💾 {checked.size}枚保存</button>
+                <button className="btn" onClick={()=>setBulkMarkTarget(v=>v?"":true)} style={{padding:"6px 12px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.2)",background:bulkMarkTarget?"rgba(255,255,255,0.15)":"transparent",color:"#fff",fontSize:"12px"}}>🏷️ まとめてマーク/タグ</button>
+              </>}
               <button className="btn" onClick={clearSelect} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>
             </>}
+            {/* 一括マーク・タグパネル */}
+            {selectMode&&bulkMarkTarget&&checked.size>0&&(
+              <div style={{width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:"12px",padding:"10px 12px",marginTop:"4px",display:"flex",flexWrap:"wrap",gap:"8px",alignItems:"center"}}>
+                <span style={{fontSize:"11px",color:"rgba(255,255,255,0.5)"}}>選択中{checked.size}枚に一括適用：</span>
+                {MARKS.map(m=>(
+                  <button key={m.key} className="btn" onClick={()=>bulkToggleMark(m.key)}
+                    style={{background:m.color,border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"32px",height:"32px",padding:m.key==="raw"?"0 8px":"0",fontSize:m.key==="raw"?"11px":"15px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {m.emoji}
+                  </button>
+                ))}
+                <div style={{display:"flex",gap:"6px",flex:1,minWidth:"160px"}}>
+                  <input value={bulkTagInput} onChange={e=>setBulkTagInput(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&bulkAddTag(bulkTagInput)}
+                    placeholder="タグを一括追加..."
+                    list="bulk-tag-suggest"
+                    style={{flex:1,padding:"6px 10px",borderRadius:"8px",border:"1px solid rgba(167,139,250,0.3)",background:"rgba(167,139,250,0.08)",color:"#fff",fontSize:"12px",outline:"none"}}/>
+                  <datalist id="bulk-tag-suggest">
+                    {allTags().map(t=><option key={t} value={t}/>)}
+                  </datalist>
+                  <button className="btn" onClick={()=>bulkAddTag(bulkTagInput)} style={{padding:"6px 12px",borderRadius:"8px",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",fontSize:"12px",fontWeight:"600",flexShrink:0}}>追加</button>
+                </div>
+              </div>
+            )}
             <select value={filterDate} onChange={e=>setFilterDate(e.target.value)} style={{background:filterDate?"rgba(102,126,234,0.3)":"rgba(255,255,255,0.08)",border:`1px solid ${filterDate?"rgba(102,126,234,0.6)":"rgba(255,255,255,0.12)"}`,color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
               <option value="">📅 全日程</option>
               {availableDates.map(d=><option key={d} value={d}>{d}</option>)}
@@ -709,8 +797,13 @@ function Gallery({album}) {
               const photoMarks=marks[photo.id]||{};
               const activeMarks=MARKS.filter(m=>photoMarks[m.key]);
               return (
-                <div key={photo.id} className="tc" onClick={()=>selectMode?toggleCheck(photo.id):setSelectedIdx(idx)}
-                  style={{position:"relative",borderRadius:"10px",overflow:"hidden",background:"#1a1a2e",aspectRatio:"4/3",boxShadow:isChecked?"0 0 0 3px #667eea":"0 4px 16px rgba(0,0,0,0.3)",transition:"box-shadow 0.15s"}}>
+                <div key={photo.id} className="tc"
+                  data-photo-idx={idx}
+                  onClick={e=>handlePhotoClick(e,idx,photo.id)}
+                  onTouchStart={e=>handleTouchStart(e,idx)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  style={{position:"relative",borderRadius:"10px",overflow:"hidden",background:"#1a1a2e",aspectRatio:"4/3",boxShadow:isChecked?"0 0 0 3px #667eea":"0 4px 16px rgba(0,0,0,0.3)",transition:"box-shadow 0.15s",userSelect:"none"}}>
                   {photo.isVideo?(
                     <div style={{width:"100%",height:"100%",background:"#111",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"8px"}}>
                       <span style={{fontSize:"36px"}}>🎬</span>
