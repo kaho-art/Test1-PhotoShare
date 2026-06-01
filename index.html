@@ -134,6 +134,32 @@ function useComments(albumId) {
   return {comments,addComment,removeComment,hasComment,countCommented,loadComments};
 }
 
+function usePhotoTags(albumId) {
+  const [tags, setTags] = useState({});
+
+  const loadTags = useCallback(async()=>{
+    try{ const d=await gasGet(`getTags&albumId=${albumId}`); if(d&&typeof d==="object"&&!Array.isArray(d)) setTags(d); }catch(e){}
+  },[albumId]);
+  useEffect(()=>{ loadTags(); },[loadTags]);
+
+  const addTag = useCallback(async(photoId, text)=>{
+    const tag = {id:genId(), text:text.trim(), time:jstNow()};
+    setTags(prev=>({...prev,[photoId]:[...(prev[photoId]||[]),tag]}));
+    try{ await gasPost({action:"addTag",albumId,photoId,tag}); }catch(e){}
+  },[albumId]);
+
+  const removeTag = useCallback(async(photoId, tagId)=>{
+    setTags(prev=>({...prev,[photoId]:(prev[photoId]||[]).filter(t=>t.id!==tagId)}));
+    try{ await gasPost({action:"removeTag",albumId,photoId,tagId}); }catch(e){}
+  },[albumId]);
+
+  const getPhotoTags = (photoId) => tags[photoId]||[];
+  const hasTag = (photoId) => !!(tags[photoId]&&tags[photoId].length>0);
+  const allTags = () => [...new Set(Object.values(tags).flat().map(t=>t.text))].sort();
+  const countTagged = () => Object.values(tags).filter(ts=>ts&&ts.length>0).length;
+  return {tags,addTag,removeTag,getPhotoTags,hasTag,allTags,countTagged};
+}
+
 const Spinner = () => <div style={{width:"36px",height:"36px",border:"3px solid rgba(255,255,255,0.1)",borderTop:"3px solid #667eea",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>;
 const CheckIcon = () => <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3" fill="none"><polyline points="20 6 9 17 4 12"/></svg>;
 
@@ -506,6 +532,7 @@ function ClientLogin({album,onLogin}) {
 function Gallery({album}) {
   const {marks,toggleMark,hasMark,hasAnyMark,countMark}=useMarks(album.id);
   const {comments,addComment,removeComment,hasComment,countCommented}=useComments(album.id);
+  const {tags:photoTags,addTag,removeTag,getPhotoTags,hasTag,allTags,countTagged}=usePhotoTags(album.id);
   const [photos,setPhotos]=useState([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(null);
   const [selectedIdx,setSelectedIdx]=useState(null);
   const [filterMark,setFilterMark]=useState("");
@@ -520,7 +547,9 @@ function Gallery({album}) {
   const [filterDate,setFilterDate]=useState("");
   const [filterType,setFilterType]=useState("all");
   const [showNotice,setShowNotice]=useState(false);
-  const [filterTag,setFilterTag]=useState(""); // all / photo / video
+  const [filterTag,setFilterTag]=useState("");
+  const [tagInput,setTagInput]=useState("");
+  const [tagTarget,setTagTarget]=useState(null); // all / photo / video
   const touchStartX=useRef(null);
 
   useEffect(()=>{ fetchDriveMedia(album.folderId).then(setPhotos).catch(e=>setError(e.message)).finally(()=>setLoading(false)); },[album.folderId]);
@@ -530,11 +559,11 @@ function Gallery({album}) {
   const displayPhotos=useMemo(()=>[...photos]
     .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
     .filter(p=>filterType==="all"||(filterType==="photo"&&!p.isVideo)||(filterType==="video"&&p.isVideo))
-    .filter(p=>!filterTag||true) // タグはアルバム単位なので常にtrue
+    .filter(p=>!filterTag||getPhotoTags(p.id).some(t=>t.text===filterTag))
     .filter(p=>!filterComment||hasComment(p.id))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
     .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
-  ,[photos,filterMark,filterComment,filterDate,filterType,sortKey,sortDir,marks,comments]);
+  ,[photos,filterMark,filterComment,filterDate,filterType,filterTag,sortKey,sortDir,marks,comments,photoTags]);
 
   const selectAll=()=>setChecked(new Set(displayPhotos.map(p=>p.id)));
   const downloadSelected=()=>{
@@ -623,6 +652,13 @@ function Gallery({album}) {
             <button className="btn" onClick={()=>setFilterComment(v=>!v)} style={{padding:"6px 12px",borderRadius:"20px",border:"none",fontSize:"12px",fontWeight:"600",background:filterComment?"rgba(96,165,250,0.8)":"rgba(255,255,255,0.08)",color:"#fff"}}>
               📝{filterComment?` (${countCommented()})`:""}
             </button>
+            {allTags().length>0&&(
+              <select value={filterTag} onChange={e=>setFilterTag(e.target.value)} style={{background:filterTag?"rgba(167,139,250,0.3)":"rgba(255,255,255,0.08)",border:`1px solid ${filterTag?"rgba(167,139,250,0.6)":"rgba(255,255,255,0.12)"}`,color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
+                <option value="">🏷️ タグ全て</option>
+                {allTags().map(t=><option key={t} value={t}>{t} ({Object.values(photoTags).flat().filter(pt=>pt.text===t).length})</option>)}
+              </select>
+            )}
+            {filterTag&&<button className="btn" onClick={()=>setFilterTag("")} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>}
             <select value={filterType} onChange={e=>setFilterType(e.target.value)} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
               <option value="all">📷🎬 全て</option>
               <option value="photo">📷 写真のみ</option>
@@ -694,6 +730,13 @@ function Gallery({album}) {
                       📝 {comments[photo.id]?.length}
                     </div>
                   )}
+                  {hasTag(photo.id)&&(
+                    <div style={{position:"absolute",bottom:hasComment(photo.id)?"38px":"22px",right:"6px",display:"flex",flexWrap:"wrap",gap:"2px",justifyContent:"flex-end",maxWidth:"90%"}}>
+                      {getPhotoTags(photo.id).map(t=>(
+                        <span key={t.id} style={{background:"rgba(167,139,250,0.85)",borderRadius:"8px",padding:"1px 5px",fontSize:"9px",color:"#fff",fontWeight:"600"}}>{t.text}</span>
+                      ))}
+                    </div>
+                  )}
                   {!selectMode&&(
                     <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
                       {MARKS.map(m=>(
@@ -752,6 +795,40 @@ function Gallery({album}) {
             ))}
           </div>
           <button className="btn" onClick={()=>setSelectedIdx(null)} style={{marginTop:"12px",background:"transparent",border:"1px solid rgba(255,255,255,0.25)",color:"rgba(255,255,255,0.5)",padding:"7px 24px",borderRadius:"20px",fontSize:"13px"}}>閉じる</button>
+
+          {/* タグセクション */}
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:"min(85vw,700px)",marginTop:"12px",background:"rgba(167,139,250,0.05)",border:"1px solid rgba(167,139,250,0.2)",borderRadius:"14px",padding:"14px",boxSizing:"border-box"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+              <span style={{fontSize:"13px",fontWeight:"600",color:"#fff"}}>🏷️ タグ</span>
+              <button className="btn" onClick={()=>setTagTarget(tagTarget===selected?.id?null:selected?.id)} style={{background:"rgba(167,139,250,0.2)",border:"1px solid rgba(167,139,250,0.4)",color:"#c4b5fd",padding:"4px 12px",borderRadius:"14px",fontSize:"11px"}}>
+                {tagTarget===selected?.id?"キャンセル":"+ 追加"}
+              </button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:tagTarget===selected?.id?"8px":"0"}}>
+              {getPhotoTags(selected?.id).length===0&&tagTarget!==selected?.id&&(
+                <p style={{color:"rgba(255,255,255,0.3)",fontSize:"12px"}}>まだタグがありません</p>
+              )}
+              {getPhotoTags(selected?.id).map(t=>(
+                <span key={t.id} style={{display:"inline-flex",alignItems:"center",gap:"4px",background:"rgba(167,139,250,0.2)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:"12px",padding:"3px 10px",fontSize:"12px",color:"#c4b5fd"}}>
+                  {t.text}
+                  <button className="btn" onClick={()=>removeTag(selected?.id,t.id)} style={{background:"transparent",border:"none",color:"rgba(167,139,250,0.6)",fontSize:"13px",padding:"0",lineHeight:1}}>✕</button>
+                </span>
+              ))}
+            </div>
+            {tagTarget===selected?.id&&(
+              <div style={{display:"flex",gap:"6px"}}>
+                <input value={tagInput} onChange={e=>setTagInput(e.target.value)}
+                  onKeyDown={e=>{if(e.key==="Enter"&&tagInput.trim()){addTag(selected?.id,tagInput.trim());setTagInput("");setTagTarget(null);}}}
+                  placeholder="例: 開宴前、宴会中、写真撮影"
+                  list={`tag-suggest-${selected?.id}`}
+                  style={{flex:1,padding:"8px 10px",borderRadius:"8px",border:"1px solid rgba(167,139,250,0.3)",background:"rgba(167,139,250,0.08)",color:"#fff",fontSize:"12px",outline:"none"}}/>
+                <datalist id={`tag-suggest-${selected?.id}`}>
+                  {allTags().map(t=><option key={t} value={t}/>)}
+                </datalist>
+                <button className="btn" onClick={()=>{if(tagInput.trim()){addTag(selected?.id,tagInput.trim());setTagInput("");setTagTarget(null);}}} style={{padding:"8px 14px",borderRadius:"8px",background:"linear-gradient(135deg,#7c3aed,#6d28d9)",color:"#fff",fontSize:"12px",fontWeight:"600",flexShrink:0}}>追加</button>
+              </div>
+            )}
+          </div>
 
           {/* コメントセクション */}
           <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:"min(85vw,700px)",marginTop:"12px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"14px",padding:"14px",boxSizing:"border-box"}}>
