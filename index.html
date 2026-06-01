@@ -661,7 +661,7 @@ function Gallery({album}) {
       <header style={{position:"sticky",top:0,zIndex:100,background:"rgba(15,15,26,0.88)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,0.08)",padding:"12px 16px"}}>
         <div style={{maxWidth:"1400px",margin:"0 auto"}}>
           {/* 1行目：タイトル */}
-          <h1 style={{fontSize:"15px",fontWeight:"300",letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📷 {album.title}</h1>
+          <h1 style={{fontSize:"15px",fontWeight:"300",letterSpacing:"0.05em",wordBreak:"break-word",lineHeight:"1.4"}}>📷 {album.title}</h1>
           {/* 2行目：残り日数＋ボタン群 */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:"4px",gap:"6px"}}>
             <div style={{display:"flex",alignItems:"center",gap:"6px",flexShrink:1,minWidth:0,flexWrap:"wrap"}}>
