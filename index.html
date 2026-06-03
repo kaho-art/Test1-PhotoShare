@@ -644,7 +644,7 @@ function Gallery({album}) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      await new Promise(r=>setTimeout(r,800));
+      await new Promise(r=>setTimeout(r,300));
     }
     setDownloading(false);
   };
@@ -663,7 +663,7 @@ function Gallery({album}) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      await new Promise(r=>setTimeout(r,800));
+      await new Promise(r=>setTimeout(r,300));
     }
   };
 
@@ -753,7 +753,7 @@ function Gallery({album}) {
             {selectMode&&<>
               <button className="btn" onClick={selectAll} style={{padding:"6px 12px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.2)",background:"transparent",color:"#fff",fontSize:"12px"}}>全選択</button>
               {checked.size>0&&<>
-                <button className="btn" onClick={downloadSelected} disabled={downloading} style={{padding:"6px 14px",borderRadius:"20px",border:"none",background:downloading?"#2d9152":"#48c774",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{downloading?"⏳ 準備中...":"💾 "+checked.size+"枚をZIPで保存"}</button>
+                <button className="btn" onClick={downloadSelected} disabled={downloading} style={{padding:"6px 14px",borderRadius:"20px",border:"none",background:downloading?"#2d9152":"#48c774",color:"#fff",fontSize:"12px",fontWeight:"600"}}>{downloading?"⏳ DL中...":"💾 "+checked.size+"枚を保存"}</button>
                 <button className="btn" onClick={()=>setBulkMarkTarget(v=>v?"":true)} style={{padding:"6px 12px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.2)",background:bulkMarkTarget?"rgba(255,255,255,0.15)":"transparent",color:"#fff",fontSize:"12px"}}>🏷️ まとめてマーク/タグ</button>
               </>}
               <button className="btn" onClick={clearSelect} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>
