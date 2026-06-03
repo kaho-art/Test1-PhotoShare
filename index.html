@@ -10,8 +10,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Gallery" />
   <title>Kaho's Photo</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -634,41 +632,39 @@ function Gallery({album}) {
   const [downloading,setDownloading]=useState(false);
   const downloadSelected=async()=>{
     if(downloading) return;
-    setDownloading(true);
     const d=new Date(); const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
     const ids=[...checked];
-    try{
-      const zip=new JSZip();
-      const folder=zip.folder("photos_"+ds);
-      await Promise.all(ids.map(async(id,i)=>{
-        const ph=displayPhotos.find(p=>p.id===id);
-        const filename=ds+"_"+(ph?.filename||id+".jpg");
-        try{
-          const res=await fetch(driveDownload(id));
-          const blob=await res.blob();
-          folder.file(filename,blob);
-        }catch(e){ console.error("DL失敗:",filename); }
-      }));
-      const blob=await zip.generateAsync({type:"blob"});
-      saveAs(blob,"photos_"+ds+".zip");
-    }catch(e){ alert("ダウンロードに失敗しました"); }
+    setDownloading(true);
+    for(let i=0;i<ids.length;i++){
+      const ph=displayPhotos.find(p=>p.id===ids[i]);
+      const a=document.createElement("a");
+      a.href=driveDownload(ids[i]);
+      a.download=ds+"_"+(ph?.filename||ids[i]+".jpg");
+      a.target="_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise(r=>setTimeout(r,800));
+    }
     setDownloading(false);
   };
 
   const downloadByMark=async(markKey)=>{
     const targets=displayPhotos.filter(p=>hasMark(p.id,markKey));
     if(targets.length===0){alert("マークした写真がありません");return;}
-    if(!confirm(`${targets.length}枚をZIPでダウンロードしますか？`))return;
+    if(!confirm(`${targets.length}枚をダウンロードしますか？`))return;
     const d=new Date(); const ds=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
-    try{
-      const zip=new JSZip(); const folder=zip.folder("photos_"+ds);
-      await Promise.all(targets.map(async(ph)=>{
-        const filename=ds+"_"+(ph.filename||ph.id+".jpg");
-        try{ const res=await fetch(driveDownload(ph.id)); const blob=await res.blob(); folder.file(filename,blob); }catch(e){}
-      }));
-      const blob=await zip.generateAsync({type:"blob"});
-      saveAs(blob,"photos_"+ds+".zip");
-    }catch(e){ alert("ダウンロードに失敗しました"); }
+    for(let i=0;i<targets.length;i++){
+      const ph=targets[i];
+      const a=document.createElement("a");
+      a.href=driveDownload(ph.id);
+      a.download=ds+"_"+(ph.filename||ph.id+".jpg");
+      a.target="_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise(r=>setTimeout(r,800));
+    }
   };
 
   const selected=selectedIdx!==null?displayPhotos[selectedIdx]:null;
@@ -821,7 +817,8 @@ function Gallery({album}) {
               const photoMarks=marks[photo.id]||{};
               const activeMarks=MARKS.filter(m=>photoMarks[m.key]);
               return (
-                <div key={photo.id} className="tc"
+                <div key={photo.id} style={{display:"flex",flexDirection:"column",gap:"4px",position:"relative"}}>
+                <div className="tc"
                   data-photo-idx={idx}
                   onClick={e=>handlePhotoClick(e,idx,photo.id)}
                   onTouchStart={e=>handleTouchStart(e,idx)}
@@ -837,34 +834,33 @@ function Gallery({album}) {
                     <img src={driveThumb(photo.id)} alt="" loading="lazy" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
                   )}
                   <div className="photo-overlay" style={{position:"absolute",bottom:0,left:0,right:0,background:"linear-gradient(transparent,rgba(0,0,0,0.7))",padding:"20px 8px 6px",fontSize:"10px",color:"rgba(255,255,255,0.8)",opacity:0,transition:"opacity 0.2s"}}>{fmtDate(photo.takenAt)}</div>
-                  {activeMarks.length>0&&(
-                    <div style={{position:"absolute",top:"7px",left:"7px",display:"flex",gap:"2px"}}>
-                      {activeMarks.map(m=><span key={m.key} style={{fontSize:"14px",filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.8))"}}>{m.emoji}</span>)}
-                    </div>
-                  )}
-                  {hasComment(photo.id)&&(
-                    <div className="mb on" style={{position:"absolute",bottom:"22px",right:"6px",background:"rgba(96,165,250,0.9)",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",color:"#fff",fontWeight:"600"}}>
-                      📝 {comments[photo.id]?.length}
-                    </div>
-                  )}
-                  {hasTag(photo.id)&&(
-                    <div style={{position:"absolute",bottom:hasComment(photo.id)?"38px":"22px",right:"6px",display:"flex",flexWrap:"wrap",gap:"2px",justifyContent:"flex-end",maxWidth:"90%"}}>
-                      {getPhotoTags(photo.id).map(t=>(
-                        <span key={t.id} style={{background:"rgba(167,139,250,0.85)",borderRadius:"8px",padding:"1px 5px",fontSize:"9px",color:"#fff",fontWeight:"600"}}>{t.text}</span>
-                      ))}
-                    </div>
-                  )}
-                  {!selectMode&&(
-                    <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px"}}>
-                      {MARKS.map(m=>(
-                        <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
-                          style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"28px",height:"22px",padding:m.key==="raw"?"0 5px":"0",fontSize:m.key==="raw"?"9px":"13px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",color:"#fff",letterSpacing:m.key==="raw"?"-0.5px":"normal"}}>
-                          {m.emoji}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                   {selectMode&&<div style={{position:"absolute",top:"7px",right:"7px",width:"28px",height:"28px",borderRadius:"50%",border:`2px solid ${isChecked?"#667eea":"rgba(255,255,255,0.6)"}`,background:isChecked?"#667eea":"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>{isChecked&&<CheckIcon/>}</div>}
+                </div>
+                {/* 写真の下にマーク・タグ・コメントを表示 */}
+                {(hasAnyMark(photo.id)||hasTag(photo.id)||hasComment(photo.id))&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"3px",padding:"0 2px"}}>
+                    {activeMarks.map(m=>(
+                      <span key={m.key} style={{fontSize:"13px"}}>{m.emoji}</span>
+                    ))}
+                    {getPhotoTags(photo.id).map(t=>(
+                      <span key={t.id} style={{background:"rgba(167,139,250,0.8)",borderRadius:"8px",padding:"1px 6px",fontSize:"9px",color:"#fff",fontWeight:"600"}}>{t.text}</span>
+                    ))}
+                    {hasComment(photo.id)&&(
+                      <span style={{background:"rgba(96,165,250,0.8)",borderRadius:"8px",padding:"1px 6px",fontSize:"9px",color:"#fff",fontWeight:"600"}}>📝{comments[photo.id]?.length}</span>
+                    )}
+                  </div>
+                )}
+                {/* マークボタン（ホバー時のみ、写真の右上） */}
+                {!selectMode&&(
+                  <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px",zIndex:10}}>
+                    {MARKS.map(m=>(
+                      <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
+                        style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"28px",height:"22px",padding:m.key==="raw"?"0 5px":"0",fontSize:m.key==="raw"?"9px":"13px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",color:"#fff",letterSpacing:m.key==="raw"?"-0.5px":"normal"}}>
+                        {m.emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 </div>
               );
             })}
