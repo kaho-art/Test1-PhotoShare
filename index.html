@@ -713,6 +713,7 @@ function Gallery({album}) {
               <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 編集が必要な場合は、サイト内チャットまたはLINEにご連絡ください。</p>
               <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 各種マークとメモ、チャットは閲覧者全員に共有されます。写真選別に使ってください。</p>
               <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ ⬇️マークでマークをつけた写真のみダウンロードしていただけます。</p>
+              <p style={{fontSize:"10px",color:"rgba(255,193,7,0.8)",lineHeight:"1.5"}}>★ 複数枚ダウンロード時、ブラウザから「複数ファイルのダウンロードを許可しますか？」と聞かれた場合は「許可」を押してください。</p>
             </div>
           )}
           <div style={{display:"flex",gap:"8px",marginTop:"10px",flexWrap:"wrap",alignItems:"center"}}>
@@ -852,7 +853,7 @@ function Gallery({album}) {
                 )}
                 {/* マークボタン（ホバー時のみ、写真の右上） */}
                 {!selectMode&&(
-                  <div className={`mb${hasAnyMark(photo.id)?" on":""}`} style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px",zIndex:10}}>
+                  <div style={{position:"absolute",top:"7px",right:"7px",display:"flex",flexDirection:"column",gap:"3px",zIndex:10}}>
                     {MARKS.map(m=>(
                       <button key={m.key} onClick={e=>{e.stopPropagation();toggleMark(photo.id,m.key);}}
                         style={{background:hasMark(photo.id,m.key)?m.color:"rgba(0,0,0,0.55)",border:"none",borderRadius:m.key==="raw"?"8px":"50%",width:m.key==="raw"?"auto":"28px",height:"22px",padding:m.key==="raw"?"0 5px":"0",fontSize:m.key==="raw"?"9px":"13px",fontWeight:m.key==="raw"?"700":"normal",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(4px)",color:"#fff",letterSpacing:m.key==="raw"?"-0.5px":"normal"}}>
