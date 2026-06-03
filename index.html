@@ -564,7 +564,7 @@ function Gallery({album}) {
   const displayPhotos=useMemo(()=>[...photos]
     .filter(p=>!filterMark||(marks[p.id]&&marks[p.id][filterMark]===true))
     .filter(p=>filterType==="all"||(filterType==="photo"&&!p.isVideo)||(filterType==="video"&&p.isVideo))
-    .filter(p=>!filterTag||getPhotoTags(p.id).some(t=>t.text===filterTag))
+    .filter(p=>!filterTag||(filterTag==="__notag__"?!hasTag(p.id):getPhotoTags(p.id).some(t=>t.text===filterTag)))
     .filter(p=>!filterComment||hasComment(p.id))
     .filter(p=>!filterDate||fmtDate(p.takenAt)===filterDate)
     .sort((a,b)=>{const va=a[sortKey],vb=b[sortKey];return sortDir==="asc"?(va>vb?1:-1):(va<vb?1:-1);})
@@ -711,6 +711,7 @@ function Gallery({album}) {
               <select value={filterTag} onChange={e=>setFilterTag(e.target.value)} style={{background:filterTag?"rgba(167,139,250,0.3)":"rgba(255,255,255,0.08)",border:`1px solid ${filterTag?"rgba(167,139,250,0.6)":"rgba(255,255,255,0.12)"}`,color:"#fff",padding:"6px 12px",borderRadius:"20px",fontSize:"12px",cursor:"pointer",outline:"none"}}>
                 <option value="">🏷️ タグ全て</option>
                 {allTags().map(t=><option key={t} value={t}>{t} ({Object.values(photoTags).flat().filter(pt=>pt.text===t).length})</option>)}
+                <option value="__notag__">タグなし</option>
               </select>
             )}
             {filterTag&&<button className="btn" onClick={()=>setFilterTag("")} style={{padding:"6px 10px",borderRadius:"20px",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:"12px"}}>✕</button>}
